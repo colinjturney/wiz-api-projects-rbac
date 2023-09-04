@@ -18,6 +18,8 @@ client_secret = sys.argv[2]
 # Where to run the query from- i.e. the root management group id.
 root_management_group_id = sys.argv[3]
 
+default_user_role = sys.argv[4]
+
 # Uncomment the following section to define the proxies in your environment,
 #   if necessary:
 # http_proxy  = "http://"+user+":"+passw+"@x.x.x.x:abcd"
@@ -26,218 +28,6 @@ root_management_group_id = sys.argv[3]
 #     "http"  : http_proxy,
 #     "https" : https_proxy
 # }
-
-# The GraphQL query that defines which data you wish to fetch.
-query = ("""
-    query GraphSearch(
-        $query: GraphEntityQueryInput
-        $controlId: ID
-        $projectId: String!
-        $first: Int
-        $after: String
-        $fetchTotalCount: Boolean!
-        $quick: Boolean = true
-        $fetchPublicExposurePaths: Boolean = false
-        $fetchInternalExposurePaths: Boolean = false
-        $fetchIssueAnalytics: Boolean = false
-        $fetchLateralMovement: Boolean = false
-        $fetchKubernetes: Boolean = false
-      ) {
-        graphSearch(
-          query: $query
-          controlId: $controlId
-          projectId: $projectId
-          first: $first
-          after: $after
-          quick: $quick
-        ) {
-          totalCount @include(if: $fetchTotalCount)
-          maxCountReached @include(if: $fetchTotalCount)
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-          nodes {
-            entities {
-              ...PathGraphEntityFragment
-              userMetadata {
-                isInWatchlist
-                isIgnored
-                note
-              }
-              technologies {
-                id
-                icon
-              }
-              publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
-                nodes {
-                  ...NetworkExposureFragment
-                }
-              }
-              otherSubscriptionExposures(first: 10)
-                @include(if: $fetchInternalExposurePaths) {
-                nodes {
-                  ...NetworkExposureFragment
-                }
-              }
-              otherVnetExposures(first: 10)
-                @include(if: $fetchInternalExposurePaths) {
-                nodes {
-                  ...NetworkExposureFragment
-                }
-              }
-              lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
-                nodes {
-                  id
-                  pathEntities {
-                    entity {
-                      ...PathGraphEntityFragment
-                    }
-                  }
-                }
-              }
-              kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
-                nodes {
-                  id
-                  path {
-                    ...PathGraphEntityFragment
-                  }
-                }
-              }
-            }
-            aggregateCount
-          }
-        }
-      }
-  
-      fragment PathGraphEntityFragment on GraphEntity {
-        id
-        name
-        type
-        properties
-        issueAnalytics: issues(filterBy: { status: [IN_PROGRESS, OPEN] })
-          @include(if: $fetchIssueAnalytics) {
-          highSeverityCount
-          criticalSeverityCount
-        }
-      }
-
-  
-      fragment NetworkExposureFragment on NetworkExposure {
-        id
-        portRange
-        sourceIpRange
-        destinationIpRange
-        path {
-          ...PathGraphEntityFragment
-        }
-        applicationEndpoints {
-          ...PathGraphEntityFragment
-        }
-      }
-""")
-
-# The variables sent along with the above query
-variables = {
-  "quick": True,
-  "fetchPublicExposurePaths": True,
-  "fetchInternalExposurePaths": False,
-  "fetchIssueAnalytics": False,
-  "fetchLateralMovement": True,
-  "fetchKubernetes": False,
-  "first": 50,
-  "query": {
-    "type": [
-      "CLOUD_ORGANIZATION"
-    ],
-    "select": True,
-    "where": {
-      "externalId": {
-        "EQUALS": [
-          root_management_group_id
-        ]
-      }
-    },
-    "relationships": [
-      {
-        "type": [
-          {
-            "type": "CONTAINS"
-          }
-        ],
-        "with": {
-          "type": [
-            "CLOUD_ORGANIZATION"
-          ],
-          "select": True,
-          "relationships": [
-            {
-              "type": [
-                {
-                  "type": "CONTAINS"
-                }
-              ],
-              "optional": True,
-              "with": {
-                "type": [
-                  "SUBSCRIPTION"
-                ],
-                "select": True
-              }
-            },
-            {
-              "type": [
-                {
-                  "type": "CONTAINS"
-                }
-              ],
-              "optional": True,
-              "with": {
-                "type": [
-                  "CLOUD_ORGANIZATION"
-                ],
-                "select": True,
-                "relationships": [
-                  {
-                    "type": [
-                      {
-                        "type": "CONTAINS"
-                      }
-                    ],
-                    "with": {
-                      "type": [
-                        "SUBSCRIPTION"
-                      ],
-                      "select": True
-                    },
-                    "optional": True
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      },
-      {
-        "type": [
-          {
-            "type": "CONTAINS"
-          }
-        ],
-        "optional": True,
-        "with": {
-          "type": [
-            "SUBSCRIPTION"
-          ],
-          "select": True
-        }
-      }
-    ]
-  },
-  "projectId": "*",
-  "fetchTotalCount": False
-}
-
 
 def query_wiz_api(query, variables):
     """Query Wiz API for the given query data schema"""
@@ -297,63 +87,465 @@ def request_wiz_api_token(client_id, client_secret):
 
     return TOKEN
 
-def model_project_structure(results):
+def get_role_bindings(subscription_id):
+    query = ("""
+        query GraphSearch(
+            $query: GraphEntityQueryInput
+            $controlId: ID
+            $projectId: String!
+            $first: Int
+            $after: String
+            $fetchTotalCount: Boolean!
+            $quick: Boolean = true
+            $fetchPublicExposurePaths: Boolean = false
+            $fetchInternalExposurePaths: Boolean = false
+            $fetchIssueAnalytics: Boolean = false
+            $fetchLateralMovement: Boolean = false
+            $fetchKubernetes: Boolean = false
+        ) {
+            graphSearch(
+            query: $query
+            controlId: $controlId
+            projectId: $projectId
+            first: $first
+            after: $after
+            quick: $quick
+            ) {
+            totalCount @include(if: $fetchTotalCount)
+            maxCountReached @include(if: $fetchTotalCount)
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            nodes {
+                entities {
+                ...PathGraphEntityFragment
+                userMetadata {
+                    isInWatchlist
+                    isIgnored
+                    note
+                }
+                technologies {
+                    id
+                    icon
+                }
+                publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
+                    nodes {
+                    ...NetworkExposureFragment
+                    }
+                }
+                otherSubscriptionExposures(first: 10)
+                    @include(if: $fetchInternalExposurePaths) {
+                    nodes {
+                    ...NetworkExposureFragment
+                    }
+                }
+                otherVnetExposures(first: 10)
+                    @include(if: $fetchInternalExposurePaths) {
+                    nodes {
+                    ...NetworkExposureFragment
+                    }
+                }
+                lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
+                    nodes {
+                    id
+                    pathEntities {
+                        entity {
+                        ...PathGraphEntityFragment
+                        }
+                    }
+                    }
+                }
+                kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
+                    nodes {
+                    id
+                    path {
+                        ...PathGraphEntityFragment
+                    }
+                    }
+                }
+                }
+                aggregateCount
+            }
+            }
+        }
+    
+        fragment PathGraphEntityFragment on GraphEntity {
+            id
+            name
+            type
+            properties
+            issueAnalytics: issues(filterBy: { status: [IN_PROGRESS, OPEN] })
+            @include(if: $fetchIssueAnalytics) {
+            highSeverityCount
+            criticalSeverityCount
+            }
+        }
 
+    
+        fragment NetworkExposureFragment on NetworkExposure {
+            id
+            portRange
+            sourceIpRange
+            destinationIpRange
+            path {
+            ...PathGraphEntityFragment
+            }
+            applicationEndpoints {
+            ...PathGraphEntityFragment
+            }
+        }
+    """)
+
+    # The variables sent along with the above query
+    variables = {
+        "quick": True,
+        "fetchPublicExposurePaths": True,
+        "fetchInternalExposurePaths": False,
+        "fetchIssueAnalytics": False,
+        "fetchLateralMovement": True,
+        "fetchKubernetes": False,
+        "first": 50,
+        "query": {
+            "type": [
+            "SUBSCRIPTION"
+            ],
+            "select": True,
+            "where": {
+                "cloudPlatform": {
+                    "EQUALS": [
+                    "Azure"
+                    ]
+                },
+                "subscriptionId": {
+                    "EQUALS": [
+                        "93e2fb4e-e46a-4ee5-8be0-1a4f555eb1ff"
+                    ]
+                }
+            },
+            "relationships": [
+            {
+                "type": [
+                {
+                    "type": "APPLIES_TO",
+                    "reverse": True
+                }
+                ],
+                "with": {
+                "type": [
+                    "ACCESS_ROLE_BINDING"
+                ],
+                "select": True,
+                "relationships": [
+                    {
+                    "type": [
+                        {
+                        "type": "ASSIGNED_TO"
+                        }
+                    ],
+                    "with": {
+                        "type": [
+                        "USER_ACCOUNT"
+                        ],
+                        "select": True
+                    }
+                    }
+                ]
+                }
+            }
+            ]
+        },
+        "projectId": "*",
+        "fetchTotalCount": False
+    }
+
+    results = query_wiz_api(query, variables)
+
+    # Adding to dict to ensure duplicate results won't be added. Need to add logic to catch any related errors here.
+
+    role_bindings = {}
+
+    for result in results["data"]["graphSearch"]["nodes"]:
+
+        entities = result["entities"]
+
+        if entities[2] != None:
+            role_bindings[entities[2]["properties"]["otherMails"]] = {
+                "display_name" : entities[2]["properties"]["displayName"],
+                "email_address"  : entities[2]["properties"]["otherMails"]
+            }
+
+    return role_bindings
+
+
+def model_project_structure():
+
+    query = ("""
+        query GraphSearch(
+            $query: GraphEntityQueryInput
+            $controlId: ID
+            $projectId: String!
+            $first: Int
+            $after: String
+            $fetchTotalCount: Boolean!
+            $quick: Boolean = true
+            $fetchPublicExposurePaths: Boolean = false
+            $fetchInternalExposurePaths: Boolean = false
+            $fetchIssueAnalytics: Boolean = false
+            $fetchLateralMovement: Boolean = false
+            $fetchKubernetes: Boolean = false
+        ) {
+            graphSearch(
+            query: $query
+            controlId: $controlId
+            projectId: $projectId
+            first: $first
+            after: $after
+            quick: $quick
+            ) {
+            totalCount @include(if: $fetchTotalCount)
+            maxCountReached @include(if: $fetchTotalCount)
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            nodes {
+                entities {
+                ...PathGraphEntityFragment
+                userMetadata {
+                    isInWatchlist
+                    isIgnored
+                    note
+                }
+                technologies {
+                    id
+                    icon
+                }
+                publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
+                    nodes {
+                    ...NetworkExposureFragment
+                    }
+                }
+                otherSubscriptionExposures(first: 10)
+                    @include(if: $fetchInternalExposurePaths) {
+                    nodes {
+                    ...NetworkExposureFragment
+                    }
+                }
+                otherVnetExposures(first: 10)
+                    @include(if: $fetchInternalExposurePaths) {
+                    nodes {
+                    ...NetworkExposureFragment
+                    }
+                }
+                lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
+                    nodes {
+                    id
+                    pathEntities {
+                        entity {
+                        ...PathGraphEntityFragment
+                        }
+                    }
+                    }
+                }
+                kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
+                    nodes {
+                    id
+                    path {
+                        ...PathGraphEntityFragment
+                    }
+                    }
+                }
+                }
+                aggregateCount
+            }
+            }
+        }
+    
+        fragment PathGraphEntityFragment on GraphEntity {
+            id
+            name
+            type
+            properties
+            issueAnalytics: issues(filterBy: { status: [IN_PROGRESS, OPEN] })
+            @include(if: $fetchIssueAnalytics) {
+            highSeverityCount
+            criticalSeverityCount
+            }
+        }
+
+    
+        fragment NetworkExposureFragment on NetworkExposure {
+            id
+            portRange
+            sourceIpRange
+            destinationIpRange
+            path {
+            ...PathGraphEntityFragment
+            }
+            applicationEndpoints {
+            ...PathGraphEntityFragment
+            }
+        }
+    """)
+
+    variables = {
+        "quick": True,
+        "fetchPublicExposurePaths": True,
+        "fetchInternalExposurePaths": False,
+        "fetchIssueAnalytics": False,
+        "fetchLateralMovement": True,
+        "fetchKubernetes": False,
+        "first": 50,
+        "query": {
+            "type": [
+            "CLOUD_ORGANIZATION"
+            ],
+            "select": True,
+            "where": {
+            "externalId": {
+                "EQUALS": [
+                root_management_group_id
+                ]
+            }
+            },
+            "relationships": [
+            {
+                "type": [
+                {
+                    "type": "CONTAINS"
+                }
+                ],
+                "with": {
+                "type": [
+                    "CLOUD_ORGANIZATION"
+                ],
+                "select": True,
+                "relationships": [
+                    {
+                    "type": [
+                        {
+                        "type": "CONTAINS"
+                        }
+                    ],
+                    "optional": True,
+                    "with": {
+                        "type": [
+                        "SUBSCRIPTION"
+                        ],
+                        "select": True
+                    }
+                    },
+                    {
+                    "type": [
+                        {
+                        "type": "CONTAINS"
+                        }
+                    ],
+                    "optional": True,
+                    "with": {
+                        "type": [
+                        "CLOUD_ORGANIZATION"
+                        ],
+                        "select": True,
+                        "relationships": [
+                        {
+                            "type": [
+                            {
+                                "type": "CONTAINS"
+                            }
+                            ],
+                            "with": {
+                            "type": [
+                                "SUBSCRIPTION"
+                            ],
+                            "select": True
+                            },
+                            "optional": True
+                        }
+                        ]
+                    }
+                    }
+                ]
+                }
+            },
+            {
+                "type": [
+                {
+                    "type": "CONTAINS"
+                }
+                ],
+                "optional": True,
+                "with": {
+                "type": [
+                    "SUBSCRIPTION"
+                ],
+                "select": True
+                }
+            }
+            ]
+        },
+        "projectId": "*",
+        "fetchTotalCount": False
+    }
+
+    results = query_wiz_api(query, variables)
     structure = {}
 
-    for result in results:
+    for result in results["data"]["graphSearch"]["nodes"]:
         entities = result["entities"]
 
         if entities[0] != None:
 
             #entity0: tenant root group
 
-            element                 = {}
-            element["child-fps"]    = {}
-            element["projects"]     = set()
+            element                     = {}
+            element["folder-projects"]  = {}
+            element["projects"]         = {}
 
             if entities[0]["name"] not in structure.keys():
                 structure[entities[0]["name"]] = element
 
             #entity1: cloud organization - member of entity0 tenant root group
 
-            element                 = {}
-            element["child-fps"]    = {}
-            element["projects"]     = set()
+            element                     = {}
+            element["folder-projects"]  = {}
+            element["projects"]         = {}
 
-            if entities[1]["name"] not in structure[entities[0]["name"]]["child-fps"].keys():
-                structure[entities[0]["name"]]["child-fps"][entities[1]["name"]] = element
+            if entities[1]["name"] not in structure[entities[0]["name"]]["folder-projects"].keys():
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]] = element
 
             #entity2: subscription - member of entity1 cloud org
             
             if entities[2] != None:
-                if entities[2]["name"] not in structure[entities[0]["name"]]["projects"]:
-                    structure[entities[0]["name"]]["child-fps"][entities[1]["name"]]["projects"].add(entities[2]["name"])
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = {}
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["projects"][entities[2]["name"]]["users"] = get_role_bindings(entities[2]["properties"]["subscriptionExternalId"])
 
             #entity3: cloud organization - member of entity1 cloud org
 
             if entities[3] != None:
-                if entities[3]["name"] not in structure[entities[0]["name"]]["child-fps"][entities[1]["name"]]["child-fps"]:
-                    element                 = {}
-                    element["child-fps"]    = {}
-                    element["projects"]     = set()
-                    structure[entities[0]["name"]]["child-fps"][entities[1]["name"]]["child-fps"][entities[3]["name"]] = element
+                if entities[3]["name"] not in structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"]:
+                    element                     = {}
+                    element["folder-projects"]  = {}
+                    element["projects"]         = {}
+                    structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]] = element
 
             #entity4: subscription - member of entity3 cloud org
 
             if entities[4] != None:
-                if entities[4]["name"] not in structure[entities[0]["name"]]["child-fps"][entities[1]["name"]]["child-fps"][entities[3]["name"]]["projects"]:
-                    structure[entities[0]["name"]]["child-fps"][entities[1]["name"]]["child-fps"][entities[3]["name"]]["projects"].add(entities[4]["name"])
-
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = {}
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]]["projects"][entities[4]["name"]]["users"] = get_role_bindings(entities[4]["properties"]["subscriptionExternalId"])
+                    
             #entity5: subscription - member of tenant root management group
 
             if entities[5] != None:
-                if entities[5]["name"] not in structure[entities[0]["name"]]["projects"]:
-                    structure[entities[0]["name"]]["projects"].add(entities[5]["name"])
+                    structure[entities[0]["name"]]["projects"][(entities[5]["name"])] = {}
+                    structure[entities[0]["name"]]["projects"][(entities[5]["name"])]["users"] = get_role_bindings(entities[5]["properties"]["subscriptionExternalId"])
+    
 
     return structure
 
-def build_project_structure(structure):
+def create_project_structure(structure):
 
     print(structure)
     print()
@@ -369,15 +561,22 @@ def build_project_structure(structure):
         print(" Processing child projects of " + l1fp + "...")
         if structure[l1fp]["projects"] == None:
             print("- None found.")
-        for project in structure[l1fp]["projects"]:
+        for project_name in structure[l1fp]["projects"]:
+            project = structure[l1fp]["projects"][project_name]
+            print(structure[l1fp]["projects"][project_name])
             print()
-            print("  * Creating project: " + l1fp + "/" + project)
-            mock_create_project(l1fp + "/" + project)
+            print("  * Creating project: " + l1fp + "/" + project_name)
+            project_id = mock_create_project(l1fp + "/" + project_name)
+
+            if len(project["users"].keys()) > 0:
+                users = project["users"]
+                for user_name in users:
+                    print("     " + mock_provision_user(users[user_name]["display_name"],users[user_name]["email_address"],"AzureAD",default_user_role))
 
         # Process child folder projects of level 1 folder projects
         print()
         print(" Processing child folder projects of " + l1fp + "...")
-        for l2fp in structure[l1fp]["child-fps"]:
+        for l2fp in structure[l1fp]["folder-projects"]:
             print()
             print("  * Creating folder project: " + l1fp + "/" + l2fp + "...")
             mock_create_project(l1fp + "/" + l2fp + "/")
@@ -385,18 +584,24 @@ def build_project_structure(structure):
             # Process child projects of level 2 folder projects
             print()
             print("    Processing child projects of " + l1fp + "/" + l2fp + "...")
-            if len(structure[l1fp]["child-fps"][l2fp]["projects"]) == 0:
+            if len(structure[l1fp]["folder-projects"][l2fp]["projects"]) == 0:
                 print("     - None found.")
-            for project in structure[l1fp]["child-fps"][l2fp]["projects"]:
-                print("     * Creating project: " + project)
-                mock_create_project(l1fp + "/" + l2fp + "/" + project)
+            for project_name in structure[l1fp]["folder-projects"][l2fp]["projects"]:
+                project = structure[l1fp]["folder-projects"][l2fp]["projects"][project_name]
+                print("     * Creating project: " + project_name)
+                mock_create_project(l1fp + "/" + l2fp + "/" + project_name)
+                if len(project["users"].keys()) > 0:
+                    users = project["users"]
+                    for user_name in users:
+                        print("        " + mock_provision_user(users[user_name]["display_name"],users[user_name]["email_address"],"AzureAD",default_user_role))
+
             print()
 
             # Process child folder projects of level 2 folder projects
             print("    Processing child folder projects of " + l1fp + "/" + l2fp + "...")
-            if len(structure[l1fp]["child-fps"][l2fp]["child-fps"]) == 0:
+            if len(structure[l1fp]["folder-projects"][l2fp]["folder-projects"]) == 0:
                 print("     - None found.")
-            for l3fp in structure[l1fp]["child-fps"][l2fp]["child-fps"]:
+            for l3fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"]:
                 print()
                 print("     * Creating folder project " + l1fp + "/" + l2fp + "/" + l3fp)
                 mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/")
@@ -404,18 +609,22 @@ def build_project_structure(structure):
                 # Process child projects of level 3 folder projects
                 print()
                 print("       Processing child projects of " + l1fp + "/" + l2fp + "/" + l3fp +  "...")
-                for project in structure[l1fp]["child-fps"][l2fp]["child-fps"][l3fp]["projects"]:
-                    print("        * Creating project: " + project)
-                    mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + project)
+                for project_name in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"]:
+                    project = structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][project_name]
+                    print("        * Creating project: " + project_name)
+                    mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + project_name)
+                    if len(project["users"].keys()) > 0:
+                        users = project["users"]
+                        for user_name in users:
+                            print("           " + mock_provision_user(users[user_name]["display_name"],users[user_name]["email_address"],"AzureAD",default_user_role))
                 print()
 
                  # Process child folder projects of level 3 folder projects
-                for l4fp in structure[l1fp]["child-fps"][l2fp]["child-fps"][l3fp]["child-fps"]:
+                for l4fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["folder-projects"]:
                     print("creating folder project " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp)
                     mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp + "/")
 
 def create_project(project_name, is_folder, parent_folder_project_id):
-    # The GraphQL query that defines which data you wish to fetch.
     query = ("""
         mutation CreateProject($input: CreateProjectInput!) {
             createProject(input: $input) {
@@ -426,7 +635,6 @@ def create_project(project_name, is_folder, parent_folder_project_id):
         }
     """)
 
-    # The variables sent along with the above query
     variables = {
     "input": {
         "name": project_name,
@@ -449,7 +657,6 @@ def create_project(project_name, is_folder, parent_folder_project_id):
     }
     }
 
-
 def mock_create_project(project_path):
     f = open("output.txt","a")
     f.write(project_path + "\n")
@@ -458,13 +665,10 @@ def main():
 
 #    print("Getting token.")
     request_wiz_api_token(client_id, client_secret)
-
-    result = query_wiz_api(query, variables)
-    json_object = json.dumps(result)
     
-    project_structure = model_project_structure(result["data"]["graphSearch"]["nodes"])
+    project_structure = model_project_structure()
 
-    build_project_structure(project_structure)
+    create_project_structure(project_structure)
 
     # The above code lists the first <x> items.
     # If paginating on a Graph Query,
@@ -478,6 +682,9 @@ def main():
     #     print(result)
     #     pageInfo = result['data']['graphSearch']['pageInfo']
 
+
+def mock_provision_user(display_name, email_address, saml_provider, role):
+    return "Provisioning user " + display_name + "(" + email_address +") - " + role
 
 if __name__ == '__main__':
     main()
