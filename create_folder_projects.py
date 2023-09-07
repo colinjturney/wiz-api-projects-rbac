@@ -10,14 +10,14 @@ import sys
 HEADERS_AUTH = {"Content-Type": "application/x-www-form-urlencoded"}
 HEADERS = {"Content-Type": "application/json"}
 
-# Expect Wiz client_id, client_secret adn root_management_group_id to be passed in as runtime variables.
-
+# Expect Wiz client_id, client_secret, root_management_group_id and default_user_role to be passed in as runtime variables.
 client_id = sys.argv[1]
 client_secret = sys.argv[2]
 
 # Where to run the query from- i.e. the root management group id.
 root_management_group_id = sys.argv[3]
 
+# The default Wiz RBAC role to assign to users. Should be project scoped.
 default_user_role = sys.argv[4]
 
 # Uncomment the following section to define the proxies in your environment,
@@ -495,6 +495,8 @@ def model_project_structure():
     for result in results["data"]["graphSearch"]["nodes"]:
         entities = result["entities"]
 
+
+        # Some rows returned are empty if there is no matching entity at the level of the graph, so we'll ignore these if = None.
         if entities[0] != None:
 
             #entity0: tenant root group
@@ -502,6 +504,7 @@ def model_project_structure():
             element                     = {}
             element["folder-projects"]  = {}
             element["projects"]         = {}
+            element["project_id"]       = None
 
             if entities[0]["name"] not in structure.keys():
                 structure[entities[0]["name"]] = element
@@ -511,6 +514,7 @@ def model_project_structure():
             element                     = {}
             element["folder-projects"]  = {}
             element["projects"]         = {}
+            element["project_id"]       = None
 
             if entities[1]["name"] not in structure[entities[0]["name"]]["folder-projects"].keys():
                 structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]] = element
@@ -518,8 +522,10 @@ def model_project_structure():
             #entity2: subscription - member of entity1 cloud org
             
             if entities[2] != None:
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = {}
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["projects"][entities[2]["name"]]["users"] = get_role_bindings(entities[2]["properties"]["subscriptionExternalId"])
+                element     = {}
+                element["users"] = get_role_bindings(entities[2]["properties"]["subscriptionExternalId"])
+                element["project_id"] = None
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = element
 
             #entity3: cloud organization - member of entity1 cloud org
 
@@ -528,22 +534,32 @@ def model_project_structure():
                     element                     = {}
                     element["folder-projects"]  = {}
                     element["projects"]         = {}
+                    element["project_id"]       = None
                     structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]] = element
 
             #entity4: subscription - member of entity3 cloud org
 
             if entities[4] != None:
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = {}
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]]["projects"][entities[4]["name"]]["users"] = get_role_bindings(entities[4]["properties"]["subscriptionExternalId"])
+                element     = {}
+                element["users"] = get_role_bindings(entities[4]["properties"]["subscriptionExternalId"])
+                element["project_id"] = None
+                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
                     
             #entity5: subscription - member of tenant root management group
 
             if entities[5] != None:
-                    structure[entities[0]["name"]]["projects"][(entities[5]["name"])] = {}
-                    structure[entities[0]["name"]]["projects"][(entities[5]["name"])]["users"] = get_role_bindings(entities[5]["properties"]["subscriptionExternalId"])
+                element     = {}
+                element["users"] = get_role_bindings(entities[5]["properties"]["subscriptionExternalId"])
+                element["project_id"] = None
+                structure[entities[0]["name"]]["projects"][(entities[5]["name"])] = element
     
 
     return structure
+
+
+
+# create_project_structure(structure)
+# Creates the project structure and calls provision user function to provision users within each project.
 
 def create_project_structure(structure):
 
@@ -554,46 +570,48 @@ def create_project_structure(structure):
     # Process level 1 folder projects
     for l1fp in structure:
         print("Creating folder project: " + l1fp)
-        mock_create_project(l1fp + "/")
+        structure[l1fp]["project_id"] = mock_create_project(l1fp, l1fp, True, None)
         print()
 
         # Process child projects of level 1 folder projects
         print(" Processing child projects of " + l1fp + "...")
         if structure[l1fp]["projects"] == None:
             print("- None found.")
-        for project_name in structure[l1fp]["projects"]:
-            project = structure[l1fp]["projects"][project_name]
-            print(structure[l1fp]["projects"][project_name])
+        for l1_project_name in structure[l1fp]["projects"]:
+            project = structure[l1fp]["projects"][l1_project_name]
+            print(structure[l1fp]["projects"][l1_project_name])
             print()
-            print("  * Creating project: " + l1fp + "/" + project_name)
-            project_id = mock_create_project(l1fp + "/" + project_name)
+            print("  * Creating project: " + l1fp + "/" + l1_project_name)
+            structure[l1fp]["projects"][l1_project_name]["project_id"] = mock_create_project(l1_project_name, l1fp + "/" + l1_project_name, False, structure[l1fp]["project_id"])
 
             if len(project["users"].keys()) > 0:
                 users = project["users"]
                 for user_name in users:
-                    print("     " + mock_provision_user(users[user_name]["display_name"],users[user_name]["email_address"],"AzureAD",default_user_role))
-
+                    mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + l1_project_name, structure[l1fp]["projects"][l1_project_name]["project_id"])
+                    print("        " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + l1_project_name)
+                
         # Process child folder projects of level 1 folder projects
         print()
         print(" Processing child folder projects of " + l1fp + "...")
         for l2fp in structure[l1fp]["folder-projects"]:
             print()
             print("  * Creating folder project: " + l1fp + "/" + l2fp + "...")
-            mock_create_project(l1fp + "/" + l2fp + "/")
+            structure[l1fp]["folder-projects"][l2fp]["project_id"] = mock_create_project(l2fp, l1fp + "/" + l2fp, True, structure[l1fp]["project_id"])
 
             # Process child projects of level 2 folder projects
             print()
             print("    Processing child projects of " + l1fp + "/" + l2fp + "...")
             if len(structure[l1fp]["folder-projects"][l2fp]["projects"]) == 0:
                 print("     - None found.")
-            for project_name in structure[l1fp]["folder-projects"][l2fp]["projects"]:
-                project = structure[l1fp]["folder-projects"][l2fp]["projects"][project_name]
-                print("     * Creating project: " + project_name)
-                mock_create_project(l1fp + "/" + l2fp + "/" + project_name)
+            for l2_project_name in structure[l1fp]["folder-projects"][l2fp]["projects"]:
+                project = structure[l1fp]["folder-projects"][l2fp]["projects"][l2_project_name]
+                print("     * Creating project: " + l2_project_name)
+                structure[l1fp]["folder-projects"][l2fp]["projects"][l2_project_name]["project_id"] = mock_create_project(l2_project_name, l1fp + "/" + l2fp + "/" + l2_project_name, False, structure[l1fp]["folder-projects"][l2fp]["project_id"])
                 if len(project["users"].keys()) > 0:
                     users = project["users"]
                     for user_name in users:
-                        print("        " + mock_provision_user(users[user_name]["display_name"],users[user_name]["email_address"],"AzureAD",default_user_role))
+                        mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + l2fp + "/" + l2_project_name,structure[l1fp]["folder-projects"][l2fp]["project_id"])
+                        print("        " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + l2fp + "/" + l2_project_name)
 
             print()
 
@@ -604,26 +622,31 @@ def create_project_structure(structure):
             for l3fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"]:
                 print()
                 print("     * Creating folder project " + l1fp + "/" + l2fp + "/" + l3fp)
-                mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/")
+                structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["project_id"] = mock_create_project(l3fp, l1fp + "/" + l2fp + "/" + l3fp, True, structure[l1fp]["folder-projects"][l2fp]["project_id"])
                 
                 # Process child projects of level 3 folder projects
                 print()
                 print("       Processing child projects of " + l1fp + "/" + l2fp + "/" + l3fp +  "...")
-                for project_name in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"]:
-                    project = structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][project_name]
-                    print("        * Creating project: " + project_name)
-                    mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + project_name)
+                for l3_project_name in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"]:
+                    project = structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][l3_project_name]
+                    print("        * Creating project: " + l3_project_name)
+                    structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][l3_project_name]["project_id"] = mock_create_project(l3_project_name,l1fp + "/" + l2fp + "/" + l3fp + "/" + l3_project_name, False, structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["project_id"])
                     if len(project["users"].keys()) > 0:
                         users = project["users"]
                         for user_name in users:
-                            print("           " + mock_provision_user(users[user_name]["display_name"],users[user_name]["email_address"],"AzureAD",default_user_role))
+                            mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + l2fp + "/" + l3fp + "/" + l3_project_name,structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][l3_project_name]["project_id"])
+                            print("           " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l3_project_name)
                 print()
 
-                 # Process child folder projects of level 3 folder projects
-                for l4fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["folder-projects"]:
-                    print("creating folder project " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp)
-                    mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp + "/")
+                # Process child folder projects of level 3 folder projects
+                # for l4fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["folder-projects"]:
+                #     print("creating folder project " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp)
+                #     mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp + "/")
+    print(structure)
 
+# TODO
+# create_project(project_name, is_folder, parent_folder_project_id)
+# Creates the project in Wiz by calling the Wiz API.
 def create_project(project_name, is_folder, parent_folder_project_id):
     query = ("""
         mutation CreateProject($input: CreateProjectInput!) {
@@ -657,14 +680,43 @@ def create_project(project_name, is_folder, parent_folder_project_id):
     }
     }
 
-def mock_create_project(project_path):
-    f = open("output.txt","a")
-    f.write(project_path + "\n")
+# TODO
+# mock_create_project(project_path)
+# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
+
+def mock_create_project(project_name, full_path, is_folder = False, parent_project_id = None):
+    f = open("mock_project_output.csv","a")
+    project_id = project_name + "-0000-0000"
+
+    if parent_project_id == None:
+        "Project Name,Project Path,Is Folder,Project ID, Parent Project ID"
+        f.write(project_name + "," + full_path + "," + str(is_folder) + "," + project_id + "," + "\n")
+    else:
+        f.write(project_name + "," + full_path + "," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")  
+
+    return project_id
+
+# TODO
+# mock_create_project(project_path)
+# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
+
+def mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project):
+    f = open("mock_user_output.csv","a")
+    f.write(display_name + "," + email_address + "," + role + "," + project_path + "," + str(scoped_project) + "\n")
+
+def initialise_mock_files():
+    f = open("mock_user_output.csv","w")
+    f.write("Display Name, Email Address, Role, Project Path, Scoped Project ID\n")
+ 
+    g = open("mock_project_output.csv","w")
+    g.write("Project Name,Project Path,Is Folder,Project ID, Parent Project ID\n")
 
 def main():
 
 #    print("Getting token.")
     request_wiz_api_token(client_id, client_secret)
+
+    initialise_mock_files()
     
     project_structure = model_project_structure()
 
@@ -682,9 +734,6 @@ def main():
     #     print(result)
     #     pageInfo = result['data']['graphSearch']['pageInfo']
 
-
-def mock_provision_user(display_name, email_address, saml_provider, role):
-    return "Provisioning user " + display_name + "(" + email_address +") - " + role
 
 if __name__ == '__main__':
     main()
