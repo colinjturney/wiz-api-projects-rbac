@@ -17,11 +17,14 @@ It also aims to build an RBAC structure based upon the user accounts that have r
 
 ## Limitations to current functionality
 
-The script currently operates in a read-only mode and currently only focuses on the Azure Cloud Platform. The code has NOT yet been written to perform mutations on the Wiz API to actually create projects or provision users. Instead it will just generate two CSV files as follows:
+The script currently operates in a read-only mode and currently only focuses on the Azure Cloud Platform. The code has NOT yet been written to perform mutations on the Wiz API to actually create projects or provision users. Instead it will  generate three CSV files as follows:
 * mock_project_output.csv: Details the projects it would create within Wiz.
 * mock_user_output.csv: Detailing the users/roles that would be provisioned.
 
 The idea behind generating these CSV files is so that it can be verified that the intended project structures and RBAC mappings are correct before being implemented for real.
+
+An additional CSV file is also generated, user_import_file.csv. This is a file in a format that can then be imported into Wiz using a 
+pre-existing API recipe which is at https://docs.wiz.io/wiz-docs/docs/api-recipes#bulk-create-pre-provision-saml-users-from-csv
 
 ## Output Files
 
