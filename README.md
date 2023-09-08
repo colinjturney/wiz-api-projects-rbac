@@ -17,7 +17,7 @@ It also aims to build an RBAC structure based upon the user accounts that have r
 
 ## Limitations to current functionality
 
-The script currently operates in a read-only mode. The code has NOT yet been written to perform mutations on the Wiz API to actually create projects or provision users. Instead it will just generate two CSV files as follows:
+The script currently operates in a read-only mode and currently only focuses on the Azure Cloud Platform. The code has NOT yet been written to perform mutations on the Wiz API to actually create projects or provision users. Instead it will just generate two CSV files as follows:
 * mock_project_output.csv: Details the projects it would create within Wiz.
 * mock_user_output.csv: Detailing the users/roles that would be provisioned.
 
