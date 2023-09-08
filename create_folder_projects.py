@@ -15,8 +15,10 @@ client_secret = sys.argv[2]
 # Where to run the query from- i.e. the root management group id.
 root_management_group_id = sys.argv[3]
 
+default_saml_provider = sys.argv[4]
+
 # The default Wiz RBAC role to assign to users. Should be project scoped.
-default_user_role = sys.argv[4]
+default_user_role = sys.argv[5]
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +31,7 @@ logging.basicConfig(level=logging.INFO)
 #     "https" : https_proxy
 # }
 
+users = {}
 
 def get_role_bindings(subscription_id):
 
@@ -166,8 +169,9 @@ def process_folder_project(structure, parent_folder_project_id=None):
             if len(project["users"].keys()) > 0:
                 users = project["users"]
                 for user_name in users:
-                    mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + project_name, new_structure[l1fp]["projects"][project_name]["project_id"])
-                    logging.info("  - Creating User: " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + project_name)
+                    mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], default_saml_provider, default_user_role, l1fp + "/" + project_name, new_structure[l1fp]["projects"][project_name]["project_id"])
+                    add_to_users_dict(users[user_name]["display_name"], users[user_name]["email_address"], default_saml_provider, default_user_role, new_structure[l1fp]["projects"][project_name]["project_id"])
+                    logging.info("  - Created User: " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + project_name)
 
         logging.info("")
         logging.info("recursing...")
@@ -178,16 +182,8 @@ def process_folder_project(structure, parent_folder_project_id=None):
     return new_structure
 
 
-# TODO
-# create_project(project_name, is_folder, parent_folder_project_id)
-# Creates the project in Wiz by calling the Wiz API.
-def create_project(project_name, is_folder, parent_folder_project_id):
-    query = ctwiz.get_qry_create_project()
-    variables = ctwiz.get_qry_vars_create_project(project_name, is_folder, parent_folder_project_id)
-
-# TODO
 # mock_create_project(project_path)
-# Pretends to create a project in ctwiz. Instead just writes the project path it would create to the output txt file.
+# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
 
 def mock_create_project(project_name, full_path, is_folder = False, parent_project_id = None):
     f = open("mock_project_output.csv","a")
@@ -201,9 +197,34 @@ def mock_create_project(project_name, full_path, is_folder = False, parent_proje
 
     return project_id
 
+def add_to_users_dict(display_name, email_address, saml_provider, role, scoped_project_id):
+
+    if email_address not in users.keys():
+        user = {}
+        user["display_name"] = display_name
+        user["saml_provider"] = saml_provider
+        user["role"] = role
+        user["scoped_projects"] = set()
+        user["scoped_projects"].add(scoped_project_id)
+        users[email_address] = user
+    else:
+        users[email_address]["scoped_projects"].add(scoped_project_id)
+
+# generate_user_import_file():
+# Creates a file in a format that can be imported into Wiz using a pre-existing API recipe which is
+# https://docs.wiz.io/wiz-docs/docs/api-recipes#bulk-create-pre-provision-saml-users-from-csv
+
+def generate_user_import_file():
+
+    f = open("user_import_file.csv","w")
+    f.write("full_name,role,projects,email\n")
+
+    for email_address in users:
+        f.write(users[email_address]["display_name"] + "," + users[email_address]["role"] + "," + str(list(users[email_address]["scoped_projects"])) + "," + email_address + "\n")
+
 # TODO
 # mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project)
-# Pretends to create a project in ctwiz. Instead just writes the project path it would create to the output txt file.
+# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
 
 def mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project):
     f = open("mock_user_output.csv","a")
@@ -229,6 +250,9 @@ def main():
 
     logging.info("Creating project structure...")
     process_folder_project(project_structure, None)
+
+    logging.info("Generating user import file...")
+    generate_user_import_file()
 
 if __name__ == '__main__':
     main()
