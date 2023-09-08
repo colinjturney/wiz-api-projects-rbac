@@ -39,7 +39,7 @@ def query_wiz_api(query, variables):
         # result = requests.post(url="https://api.us20.app.wiz.io/graphql",
         #                        json=data, headers=HEADERS, proxies=proxyDict)
         result = requests.post(url="https://api.us20.app.wiz.io/graphql",
-                               json=data, headers=HEADERS)
+                               json=data, headers=HEADERS, timeout=60)
 
     except Exception as e:
         if ('502: Bad Gateway' not in str(e) and
@@ -67,7 +67,7 @@ def request_wiz_api_token(client_id, client_secret):
     #                         headers=HEADERS_AUTH, data=auth_payload,
     #                         proxies=proxyDict)
     response = requests.post(url="https://auth.app.wiz.io/oauth/token",
-                             headers=HEADERS_AUTH, data=auth_payload)
+                             headers=HEADERS_AUTH, data=auth_payload,  timeout=60)
 
     if response.status_code != requests.codes.ok:
         raise Exception('Error authenticating to Wiz [%d] - %s' %
@@ -563,9 +563,9 @@ def model_project_structure():
 
 def create_project_structure(structure):
 
-    print(structure)
-    print()
-    print()
+    #print(structure)
+    #print()
+    #print()
 
     # Process level 1 folder projects
     for l1fp in structure:
@@ -642,7 +642,7 @@ def create_project_structure(structure):
                 # for l4fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["folder-projects"]:
                 #     print("creating folder project " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp)
                 #     mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp + "/")
-    print(structure)
+    #print(structure)
 
 # TODO
 # create_project(project_name, is_folder, parent_folder_project_id)
@@ -713,13 +713,16 @@ def initialise_mock_files():
 
 def main():
 
-#    print("Getting token.")
+    print("Getting token.")
     request_wiz_api_token(client_id, client_secret)
 
+    print("Initialising Mock Output Files...")
     initialise_mock_files()
     
+    print("Modelling project structure...")
     project_structure = model_project_structure()
 
+    print("Creating project structure...")
     create_project_structure(project_structure)
 
     # The above code lists the first <x> items.

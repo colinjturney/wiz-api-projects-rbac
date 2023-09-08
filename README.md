@@ -13,7 +13,7 @@ By using this software and associated documentation files (the “Software”) y
 
 The aim of this script is to automate the creation of a project structure within Wiz based upon a Management Group/Organizational Unit structure held within Wiz's security graph- i.e. from a Cloud environment that is already connected to Wiz.
 
-It also aims to build an RBAC structure
+It also aims to build an RBAC structure based upon the user accounts that have role bindings mapped to each subscription.
 
 ## Limitations to current functionality
 
