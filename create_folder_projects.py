@@ -5,10 +5,7 @@
 import requests
 import json
 import sys
-
-# Standard headers
-HEADERS_AUTH = {"Content-Type": "application/x-www-form-urlencoded"}
-HEADERS = {"Content-Type": "application/json"}
+import wiz
 
 # Expect Wiz client_id, client_secret, root_management_group_id and default_user_role to be passed in as runtime variables.
 client_id = sys.argv[1]
@@ -29,240 +26,14 @@ default_user_role = sys.argv[4]
 #     "https" : https_proxy
 # }
 
-def query_wiz_api(query, variables):
-    """Query Wiz API for the given query data schema"""
-    data = {"variables": variables, "query": query}
-
-    try:
-        # Uncomment the next first line and comment the line after that
-        # to run behind proxies
-        # result = requests.post(url="https://api.us20.app.wiz.io/graphql",
-        #                        json=data, headers=HEADERS, proxies=proxyDict)
-        result = requests.post(url="https://api.us20.app.wiz.io/graphql",
-                               json=data, headers=HEADERS, timeout=60)
-
-    except Exception as e:
-        if ('502: Bad Gateway' not in str(e) and
-                '503: Service Unavailable' not in str(e) and
-                '504: Gateway Timeout' not in str(e)):
-            print("<p>Wiz-API-Error: %s</p>" % str(e))
-            return(e)
-        else:
-            print("Retry")
-
-    return result.json()
-
-
-def request_wiz_api_token(client_id, client_secret):
-    """Retrieve an OAuth access token to be used against Wiz API"""
-    auth_payload = {
-      'grant_type': 'client_credentials',
-      'audience': 'wiz-api',
-      'client_id': client_id,
-      'client_secret': client_secret
-    }
-    # Uncomment the next first line and comment the line after that
-    # to run behind proxies
-    # response = requests.post(url="https://auth.app.wiz.io/oauth/token",
-    #                         headers=HEADERS_AUTH, data=auth_payload,
-    #                         proxies=proxyDict)
-    response = requests.post(url="https://auth.app.wiz.io/oauth/token",
-                             headers=HEADERS_AUTH, data=auth_payload,  timeout=60)
-
-    if response.status_code != requests.codes.ok:
-        raise Exception('Error authenticating to Wiz [%d] - %s' %
-                        (response.status_code, response.text))
-
-    try:
-        response_json = response.json()
-        TOKEN = response_json.get('access_token')
-        if not TOKEN:
-            message = 'Could not retrieve token from Wiz: {}'.format(
-                    response_json.get("message"))
-            raise Exception(message)
-    except ValueError as exception:
-        print(exception)
-        raise Exception('Could not parse API response')
-    HEADERS["Authorization"] = "Bearer " + TOKEN
-
-    return TOKEN
 
 def get_role_bindings(subscription_id):
-    query = ("""
-        query GraphSearch(
-            $query: GraphEntityQueryInput
-            $controlId: ID
-            $projectId: String!
-            $first: Int
-            $after: String
-            $fetchTotalCount: Boolean!
-            $quick: Boolean = true
-            $fetchPublicExposurePaths: Boolean = false
-            $fetchInternalExposurePaths: Boolean = false
-            $fetchIssueAnalytics: Boolean = false
-            $fetchLateralMovement: Boolean = false
-            $fetchKubernetes: Boolean = false
-        ) {
-            graphSearch(
-            query: $query
-            controlId: $controlId
-            projectId: $projectId
-            first: $first
-            after: $after
-            quick: $quick
-            ) {
-            totalCount @include(if: $fetchTotalCount)
-            maxCountReached @include(if: $fetchTotalCount)
-            pageInfo {
-                endCursor
-                hasNextPage
-            }
-            nodes {
-                entities {
-                ...PathGraphEntityFragment
-                userMetadata {
-                    isInWatchlist
-                    isIgnored
-                    note
-                }
-                technologies {
-                    id
-                    icon
-                }
-                publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                otherSubscriptionExposures(first: 10)
-                    @include(if: $fetchInternalExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                otherVnetExposures(first: 10)
-                    @include(if: $fetchInternalExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
-                    nodes {
-                    id
-                    pathEntities {
-                        entity {
-                        ...PathGraphEntityFragment
-                        }
-                    }
-                    }
-                }
-                kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
-                    nodes {
-                    id
-                    path {
-                        ...PathGraphEntityFragment
-                    }
-                    }
-                }
-                }
-                aggregateCount
-            }
-            }
-        }
-    
-        fragment PathGraphEntityFragment on GraphEntity {
-            id
-            name
-            type
-            properties
-            issueAnalytics: issues(filterBy: { status: [IN_PROGRESS, OPEN] })
-            @include(if: $fetchIssueAnalytics) {
-            highSeverityCount
-            criticalSeverityCount
-            }
-        }
 
-    
-        fragment NetworkExposureFragment on NetworkExposure {
-            id
-            portRange
-            sourceIpRange
-            destinationIpRange
-            path {
-            ...PathGraphEntityFragment
-            }
-            applicationEndpoints {
-            ...PathGraphEntityFragment
-            }
-        }
-    """)
+    query       = wiz.get_qry_role_bindings()
+    variables   = wiz.get_qry_vars_role_bindings(subscription_id)
+    results     = wiz.query_wiz_api(query, variables)
 
-    # The variables sent along with the above query
-    variables = {
-        "quick": True,
-        "fetchPublicExposurePaths": True,
-        "fetchInternalExposurePaths": False,
-        "fetchIssueAnalytics": False,
-        "fetchLateralMovement": True,
-        "fetchKubernetes": False,
-        "first": 50,
-        "query": {
-            "type": [
-            "SUBSCRIPTION"
-            ],
-            "select": True,
-            "where": {
-                "cloudPlatform": {
-                    "EQUALS": [
-                    "Azure"
-                    ]
-                },
-                "subscriptionId": {
-                    "EQUALS": [
-                        subscription_id
-                    ]
-                }
-            },
-            "relationships": [
-            {
-                "type": [
-                {
-                    "type": "APPLIES_TO",
-                    "reverse": True
-                }
-                ],
-                "with": {
-                "type": [
-                    "ACCESS_ROLE_BINDING"
-                ],
-                "select": True,
-                "relationships": [
-                    {
-                    "type": [
-                        {
-                        "type": "ASSIGNED_TO"
-                        }
-                    ],
-                    "with": {
-                        "type": [
-                        "USER_ACCOUNT"
-                        ],
-                        "select": True
-                    }
-                    }
-                ]
-                }
-            }
-            ]
-        },
-        "projectId": "*",
-        "fetchTotalCount": False
-    }
-
-    results = query_wiz_api(query, variables)
-
-    # Adding to dict to ensure duplicate results won't be added. Need to add logic to catch any related errors here.
-
+    # Adding to dict to ensure duplicate results won't be added.
     role_bindings = {}
 
     for result in results["data"]["graphSearch"]["nodes"]:
@@ -280,405 +51,138 @@ def get_role_bindings(subscription_id):
 
 def model_project_structure():
 
-    query = ("""
-        query GraphSearch(
-            $query: GraphEntityQueryInput
-            $controlId: ID
-            $projectId: String!
-            $first: Int
-            $after: String
-            $fetchTotalCount: Boolean!
-            $quick: Boolean = true
-            $fetchPublicExposurePaths: Boolean = false
-            $fetchInternalExposurePaths: Boolean = false
-            $fetchIssueAnalytics: Boolean = false
-            $fetchLateralMovement: Boolean = false
-            $fetchKubernetes: Boolean = false
-        ) {
-            graphSearch(
-            query: $query
-            controlId: $controlId
-            projectId: $projectId
-            first: $first
-            after: $after
-            quick: $quick
-            ) {
-            totalCount @include(if: $fetchTotalCount)
-            maxCountReached @include(if: $fetchTotalCount)
-            pageInfo {
-                endCursor
-                hasNextPage
-            }
-            nodes {
-                entities {
-                ...PathGraphEntityFragment
-                userMetadata {
-                    isInWatchlist
-                    isIgnored
-                    note
-                }
-                technologies {
-                    id
-                    icon
-                }
-                publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                otherSubscriptionExposures(first: 10)
-                    @include(if: $fetchInternalExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                otherVnetExposures(first: 10)
-                    @include(if: $fetchInternalExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
-                    nodes {
-                    id
-                    pathEntities {
-                        entity {
-                        ...PathGraphEntityFragment
-                        }
-                    }
-                    }
-                }
-                kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
-                    nodes {
-                    id
-                    path {
-                        ...PathGraphEntityFragment
-                    }
-                    }
-                }
-                }
-                aggregateCount
-            }
-            }
-        }
-    
-        fragment PathGraphEntityFragment on GraphEntity {
-            id
-            name
-            type
-            properties
-            issueAnalytics: issues(filterBy: { status: [IN_PROGRESS, OPEN] })
-            @include(if: $fetchIssueAnalytics) {
-            highSeverityCount
-            criticalSeverityCount
-            }
-        }
+    query       = wiz.get_qry_project_structure()
+    variables   = wiz.get_qry_vars_project_structure(root_management_group_id)
+    results     = wiz.query_wiz_api(query, variables)
 
-    
-        fragment NetworkExposureFragment on NetworkExposure {
-            id
-            portRange
-            sourceIpRange
-            destinationIpRange
-            path {
-            ...PathGraphEntityFragment
-            }
-            applicationEndpoints {
-            ...PathGraphEntityFragment
-            }
-        }
-    """)
-
-    variables = {
-        "quick": True,
-        "fetchPublicExposurePaths": True,
-        "fetchInternalExposurePaths": False,
-        "fetchIssueAnalytics": False,
-        "fetchLateralMovement": True,
-        "fetchKubernetes": False,
-        "first": 50,
-        "query": {
-            "type": [
-            "CLOUD_ORGANIZATION"
-            ],
-            "select": True,
-            "where": {
-            "externalId": {
-                "EQUALS": [
-                root_management_group_id
-                ]
-            }
-            },
-            "relationships": [
-            {
-                "type": [
-                {
-                    "type": "CONTAINS"
-                }
-                ],
-                "with": {
-                "type": [
-                    "CLOUD_ORGANIZATION"
-                ],
-                "select": True,
-                "relationships": [
-                    {
-                    "type": [
-                        {
-                        "type": "CONTAINS"
-                        }
-                    ],
-                    "optional": True,
-                    "with": {
-                        "type": [
-                        "SUBSCRIPTION"
-                        ],
-                        "select": True
-                    }
-                    },
-                    {
-                    "type": [
-                        {
-                        "type": "CONTAINS"
-                        }
-                    ],
-                    "optional": True,
-                    "with": {
-                        "type": [
-                        "CLOUD_ORGANIZATION"
-                        ],
-                        "select": True,
-                        "relationships": [
-                        {
-                            "type": [
-                            {
-                                "type": "CONTAINS"
-                            }
-                            ],
-                            "with": {
-                            "type": [
-                                "SUBSCRIPTION"
-                            ],
-                            "select": True
-                            },
-                            "optional": True
-                        }
-                        ]
-                    }
-                    }
-                ]
-                }
-            },
-            {
-                "type": [
-                {
-                    "type": "CONTAINS"
-                }
-                ],
-                "optional": True,
-                "with": {
-                "type": [
-                    "SUBSCRIPTION"
-                ],
-                "select": True
-                }
-            }
-            ]
-        },
-        "projectId": "*",
-        "fetchTotalCount": False
-    }
-
-    results = query_wiz_api(query, variables)
+    # Initialise structure
     structure = {}
+    structure["folder_projects"] = {}
+    structure["projects"]        = {}
 
     for result in results["data"]["graphSearch"]["nodes"]:
         entities = result["entities"]
 
-
         # Some rows returned are empty if there is no matching entity at the level of the graph, so we'll ignore these if = None.
+        #entity0: tenant root group
         if entities[0] != None:
-
-            #entity0: tenant root group
-
-            element                     = {}
-            element["folder-projects"]  = {}
-            element["projects"]         = {}
-            element["project_id"]       = None
-
-            if entities[0]["name"] not in structure.keys():
-                structure[entities[0]["name"]] = element
+            if entities[0]["name"] not in structure["folder_projects"].keys():
+                element                         = {}
+                element["folder_projects"]      = {}
+                element["projects"]             = {}
+                element["project_id"]           = None
+                element["is_folder_project"]    = True
+                element["path"]                 = entities[0]["name"]
+                structure["folder_projects"][entities[0]["name"]] = element
 
             #entity1: cloud organization - member of entity0 tenant root group
 
-            element                     = {}
-            element["folder-projects"]  = {}
-            element["projects"]         = {}
-            element["project_id"]       = None
-
-            if entities[1]["name"] not in structure[entities[0]["name"]]["folder-projects"].keys():
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]] = element
+        if entities[1] != None:
+            if entities[1]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"].keys():
+                element                         = {}
+                element["folder_projects"]      = {}
+                element["projects"]             = {}
+                element["project_id"]           = None
+                element["is_folder_project"]    = True
+                element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"]
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]] = element
 
             #entity2: subscription - member of entity1 cloud org
             
-            if entities[2] != None:
-                element     = {}
-                element["users"] = get_role_bindings(entities[2]["properties"]["subscriptionExternalId"])
-                element["project_id"] = None
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = element
+        if entities[2] != None:
+            if entities[2]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"].keys():                
+                element                         = {}
+                element["users"]                = get_role_bindings(entities[2]["properties"]["subscriptionExternalId"])
+                element["project_id"]           = None
+                element["is_folder_project"]    = False
+                element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"] + "/" + entities[2]["name"]
+
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = element
 
             #entity3: cloud organization - member of entity1 cloud org
 
-            if entities[3] != None:
-                if entities[3]["name"] not in structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"]:
-                    element                     = {}
-                    element["folder-projects"]  = {}
-                    element["projects"]         = {}
-                    element["project_id"]       = None
-                    structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]] = element
+        if entities[3] != None:               
+            if entities[3]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"].keys():
+                element                         = {}
+                element["folder_projects"]      = {}
+                element["projects"]             = {}
+                element["project_id"]           = None
+                element["is_folder_project"]    = True
+                element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"] + "/" + entities[3]["name"]
+                
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]] = element
 
             #entity4: subscription - member of entity3 cloud org
 
-            if entities[4] != None:
-                element     = {}
-                element["users"] = get_role_bindings(entities[4]["properties"]["subscriptionExternalId"])
-                element["project_id"] = None
-                structure[entities[0]["name"]]["folder-projects"][entities[1]["name"]]["folder-projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
+        if entities[4] != None:
+            if entities[4]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"].keys():
+                element                         = {}
+                element["users"]                = get_role_bindings(entities[4]["properties"]["subscriptionExternalId"])
+                element["project_id"]           = None
+                element["is_folder_project"]    = False
+                element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[4]["name"]
+
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
                     
             #entity5: subscription - member of tenant root management group
 
-            if entities[5] != None:
-                element     = {}
-                element["users"] = get_role_bindings(entities[5]["properties"]["subscriptionExternalId"])
-                element["project_id"] = None
-                structure[entities[0]["name"]]["projects"][(entities[5]["name"])] = element
+        if entities[5] != None:
+            if entities[5]["name"] not in structure["folder_projects"][entities[0]["name"]]["projects"].keys():
+                element                         = {}
+                element["users"]                = get_role_bindings(entities[5]["properties"]["subscriptionExternalId"])
+                element["project_id"]           = None
+                element["is_folder_project"]    = False
+                element["path"]                 = entities[0]["name"] + "/" + entities[5]["name"]
+
+                structure["folder_projects"][entities[0]["name"]]["projects"][(entities[5]["name"])] = element
     
+    structure["folder_projects"] = structure["folder_projects"]
 
     return structure
 
+def process_folder_project(structure, parent_folder_project_id=None):
 
+    new_structure = structure["folder_projects"]
 
-# create_project_structure(structure)
-# Creates the project structure and calls provision user function to provision users within each project.
-
-def create_project_structure(structure):
-
-    #print(structure)
-    #print()
-    #print()
-
-    # Process level 1 folder projects
-    for l1fp in structure:
-        print("Creating folder project: " + l1fp)
-        structure[l1fp]["project_id"] = mock_create_project(l1fp, l1fp, True, None)
+    for l1fp in new_structure:
+        
+        print("Creating folder project: " + new_structure[l1fp]["path"])
+        new_structure[l1fp]["project_id"] = mock_create_project(l1fp, new_structure[l1fp]["path"], new_structure[l1fp]["is_folder_project"], parent_folder_project_id)
         print()
 
         # Process child projects of level 1 folder projects
         print(" Processing child projects of " + l1fp + "...")
-        if structure[l1fp]["projects"] == None:
+        if new_structure[l1fp]["projects"] == None:
             print("- None found.")
-        for l1_project_name in structure[l1fp]["projects"]:
-            project = structure[l1fp]["projects"][l1_project_name]
-            print(structure[l1fp]["projects"][l1_project_name])
+
+        for project_name in new_structure[l1fp]["projects"]:
+            project = new_structure[l1fp]["projects"][project_name]
+            print(new_structure[l1fp]["projects"][project_name])
             print()
-            print("  * Creating project: " + l1fp + "/" + l1_project_name)
-            structure[l1fp]["projects"][l1_project_name]["project_id"] = mock_create_project(l1_project_name, l1fp + "/" + l1_project_name, False, structure[l1fp]["project_id"])
+            print("  * Creating project: " + l1fp + "/" + project_name)
+            new_structure[l1fp]["projects"][project_name]["project_id"] = mock_create_project(project_name, project["path"], False, new_structure[l1fp]["project_id"])
 
             if len(project["users"].keys()) > 0:
                 users = project["users"]
                 for user_name in users:
-                    mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + l1_project_name, structure[l1fp]["projects"][l1_project_name]["project_id"])
-                    print("        " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + l1_project_name)
-                
-        # Process child folder projects of level 1 folder projects
-        print()
-        print(" Processing child folder projects of " + l1fp + "...")
-        for l2fp in structure[l1fp]["folder-projects"]:
-            print()
-            print("  * Creating folder project: " + l1fp + "/" + l2fp + "...")
-            structure[l1fp]["folder-projects"][l2fp]["project_id"] = mock_create_project(l2fp, l1fp + "/" + l2fp, True, structure[l1fp]["project_id"])
+                    mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + project_name, new_structure[l1fp]["projects"][project_name]["project_id"])
+                    print("        " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + project_name)
 
-            # Process child projects of level 2 folder projects
-            print()
-            print("    Processing child projects of " + l1fp + "/" + l2fp + "...")
-            if len(structure[l1fp]["folder-projects"][l2fp]["projects"]) == 0:
-                print("     - None found.")
-            for l2_project_name in structure[l1fp]["folder-projects"][l2fp]["projects"]:
-                project = structure[l1fp]["folder-projects"][l2fp]["projects"][l2_project_name]
-                print("     * Creating project: " + l2_project_name)
-                structure[l1fp]["folder-projects"][l2fp]["projects"][l2_project_name]["project_id"] = mock_create_project(l2_project_name, l1fp + "/" + l2fp + "/" + l2_project_name, False, structure[l1fp]["folder-projects"][l2fp]["project_id"])
-                if len(project["users"].keys()) > 0:
-                    users = project["users"]
-                    for user_name in users:
-                        mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + l2fp + "/" + l2_project_name,structure[l1fp]["folder-projects"][l2fp]["project_id"])
-                        print("        " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + l2fp + "/" + l2_project_name)
+        print("calling recursion...")
+        new_structure[l1fp]["folder_projects"] = process_folder_project(new_structure[l1fp], new_structure[l1fp]["project_id"])
 
-            print()
+    structure["folder_projects"] = new_structure
 
-            # Process child folder projects of level 2 folder projects
-            print("    Processing child folder projects of " + l1fp + "/" + l2fp + "...")
-            if len(structure[l1fp]["folder-projects"][l2fp]["folder-projects"]) == 0:
-                print("     - None found.")
-            for l3fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"]:
-                print()
-                print("     * Creating folder project " + l1fp + "/" + l2fp + "/" + l3fp)
-                structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["project_id"] = mock_create_project(l3fp, l1fp + "/" + l2fp + "/" + l3fp, True, structure[l1fp]["folder-projects"][l2fp]["project_id"])
-                
-                # Process child projects of level 3 folder projects
-                print()
-                print("       Processing child projects of " + l1fp + "/" + l2fp + "/" + l3fp +  "...")
-                for l3_project_name in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"]:
-                    project = structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][l3_project_name]
-                    print("        * Creating project: " + l3_project_name)
-                    structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][l3_project_name]["project_id"] = mock_create_project(l3_project_name,l1fp + "/" + l2fp + "/" + l3fp + "/" + l3_project_name, False, structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["project_id"])
-                    if len(project["users"].keys()) > 0:
-                        users = project["users"]
-                        for user_name in users:
-                            mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + l2fp + "/" + l3fp + "/" + l3_project_name,structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["projects"][l3_project_name]["project_id"])
-                            print("           " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l3_project_name)
-                print()
+    return new_structure
 
-                # Process child folder projects of level 3 folder projects
-                # for l4fp in structure[l1fp]["folder-projects"][l2fp]["folder-projects"][l3fp]["folder-projects"]:
-                #     print("creating folder project " + l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp)
-                #     mock_create_project(l1fp + "/" + l2fp + "/" + l3fp + "/" + l4fp + "/")
-    #print(structure)
 
 # TODO
 # create_project(project_name, is_folder, parent_folder_project_id)
 # Creates the project in Wiz by calling the Wiz API.
 def create_project(project_name, is_folder, parent_folder_project_id):
-    query = ("""
-        mutation CreateProject($input: CreateProjectInput!) {
-            createProject(input: $input) {
-            project {
-                id
-            }
-            }
-        }
-    """)
+    query = wiz.get_qry_create_project()
 
-    variables = {
-    "input": {
-        "name": project_name,
-        "identifiers": [],
-        "isFolder": is_folder,
-        "description": "",
-        "businessUnit": "",
-        "riskProfile": {
-        "businessImpact": "MBI",
-        "hasExposedAPI": "UNKNOWN",
-        "hasAuthentication": "UNKNOWN",
-        "isCustomerFacing": "UNKNOWN",
-        "isInternetFacing": "UNKNOWN",
-        "isRegulated": "UNKNOWN",
-        "sensitiveDataTypes": [],
-        "storesData": "UNKNOWN",
-        "regulatoryStandards": []
-        },
-        "parentProjectId": parent_folder_project_id
-    }
-    }
+    variables = wiz.get_qry_vars_create_project(project_name, is_folder, parent_folder_project_id)
 
 # TODO
 # mock_create_project(project_path)
@@ -714,7 +218,7 @@ def initialise_mock_files():
 def main():
 
     print("Getting token.")
-    request_wiz_api_token(client_id, client_secret)
+    wiz.request_wiz_api_token(client_id, client_secret)
 
     print("Initialising Mock Output Files...")
     initialise_mock_files()
@@ -723,7 +227,7 @@ def main():
     project_structure = model_project_structure()
 
     print("Creating project structure...")
-    create_project_structure(project_structure)
+    process_folder_project(project_structure, None)
 
     # The above code lists the first <x> items.
     # If paginating on a Graph Query,
