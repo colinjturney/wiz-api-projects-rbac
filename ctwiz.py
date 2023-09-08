@@ -1,4 +1,5 @@
 import requests
+import logging
 
 # Standard headers
 HEADERS_AUTH = {"Content-Type": "application/x-www-form-urlencoded"}
@@ -20,7 +21,7 @@ def query_wiz_api(query, variables):
         if ('502: Bad Gateway' not in str(e) and
                 '503: Service Unavailable' not in str(e) and
                 '504: Gateway Timeout' not in str(e)):
-            print("<p>Wiz-API-Error: %s</p>" % str(e))
+            logging.ERROR("Wiz-API-Error: %s", str(e))
             return(e)
         else:
             print("Retry")
@@ -56,7 +57,7 @@ def request_wiz_api_token(client_id, client_secret):
                     response_json.get("message"))
             raise Exception(message)
     except ValueError as exception:
-        print(exception)
+        logging.ERROR(exception)
         raise Exception('Could not parse API response')
     HEADERS["Authorization"] = "Bearer " + TOKEN
 
@@ -175,7 +176,6 @@ def get_qry_role_bindings():
 
 
 def get_qry_vars_role_bindings(subscription_id):
-
     return {
         "quick": True,
         "fetchPublicExposurePaths": True,
@@ -448,6 +448,18 @@ def get_qry_vars_project_structure(root_management_group_id):
         "fetchTotalCount": False
     }
 
+    # The above code lists the first <x> items.
+    # If paginating on a Graph Query,
+    #   then use <'quick': False> in the query variables.
+    # Uncomment the following section to paginate over all the results:
+    # pageInfo = result['data']['graphSearch']['pageInfo']
+    # while (pageInfo['hasNextPage']):
+    #     # fetch next page
+    #     variables['after'] = pageInfo['endCursor']
+    #     result = query_wiz_api(query, variables)
+    #     print(result)
+    #     pageInfo = result['data']['graphSearch']['pageInfo']
+
 def get_qry_create_project():
     return ("""
         mutation CreateProject($input: CreateProjectInput!) {
@@ -461,23 +473,23 @@ def get_qry_create_project():
 
 def get_qry_vars_create_project(project_name, is_folder, parent_folder_project_id):
     return {
-    "input": {
-        "name": project_name,
-        "identifiers": [],
-        "isFolder": is_folder,
-        "description": "",
-        "businessUnit": "",
-        "riskProfile": {
-        "businessImpact": "MBI",
-        "hasExposedAPI": "UNKNOWN",
-        "hasAuthentication": "UNKNOWN",
-        "isCustomerFacing": "UNKNOWN",
-        "isInternetFacing": "UNKNOWN",
-        "isRegulated": "UNKNOWN",
-        "sensitiveDataTypes": [],
-        "storesData": "UNKNOWN",
-        "regulatoryStandards": []
-        },
-        "parentProjectId": parent_folder_project_id
-    }
+        "input": {
+            "name": project_name,
+            "identifiers": [],
+            "isFolder": is_folder,
+            "description": "",
+            "businessUnit": "",
+            "riskProfile": {
+            "businessImpact": "MBI",
+            "hasExposedAPI": "UNKNOWN",
+            "hasAuthentication": "UNKNOWN",
+            "isCustomerFacing": "UNKNOWN",
+            "isInternetFacing": "UNKNOWN",
+            "isRegulated": "UNKNOWN",
+            "sensitiveDataTypes": [],
+            "storesData": "UNKNOWN",
+            "regulatoryStandards": []
+            },
+            "parentProjectId": parent_folder_project_id
+        }
     }

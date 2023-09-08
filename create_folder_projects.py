@@ -5,7 +5,8 @@
 import requests
 import json
 import sys
-import wiz
+import ctwiz
+import logging
 
 # Expect Wiz client_id, client_secret, root_management_group_id and default_user_role to be passed in as runtime variables.
 client_id = sys.argv[1]
@@ -16,6 +17,8 @@ root_management_group_id = sys.argv[3]
 
 # The default Wiz RBAC role to assign to users. Should be project scoped.
 default_user_role = sys.argv[4]
+
+logging.basicConfig(level=logging.INFO)
 
 # Uncomment the following section to define the proxies in your environment,
 #   if necessary:
@@ -29,9 +32,9 @@ default_user_role = sys.argv[4]
 
 def get_role_bindings(subscription_id):
 
-    query       = wiz.get_qry_role_bindings()
-    variables   = wiz.get_qry_vars_role_bindings(subscription_id)
-    results     = wiz.query_wiz_api(query, variables)
+    query       = ctwiz.get_qry_role_bindings()
+    variables   = ctwiz.get_qry_vars_role_bindings(subscription_id)
+    results     = ctwiz.query_wiz_api(query, variables)
 
     # Adding to dict to ensure duplicate results won't be added.
     role_bindings = {}
@@ -51,9 +54,9 @@ def get_role_bindings(subscription_id):
 
 def model_project_structure():
 
-    query       = wiz.get_qry_project_structure()
-    variables   = wiz.get_qry_vars_project_structure(root_management_group_id)
-    results     = wiz.query_wiz_api(query, variables)
+    query       = ctwiz.get_qry_project_structure()
+    variables   = ctwiz.get_qry_vars_project_structure(root_management_group_id)
+    results     = ctwiz.query_wiz_api(query, variables)
 
     # Initialise structure
     structure = {}
@@ -146,29 +149,28 @@ def process_folder_project(structure, parent_folder_project_id=None):
 
     for l1fp in new_structure:
         
-        print("Creating folder project: " + new_structure[l1fp]["path"])
+        logging.info("Creating folder project: " + new_structure[l1fp]["path"])
         new_structure[l1fp]["project_id"] = mock_create_project(l1fp, new_structure[l1fp]["path"], new_structure[l1fp]["is_folder_project"], parent_folder_project_id)
-        print()
+        logging.info("")
 
-        # Process child projects of level 1 folder projects
-        print(" Processing child projects of " + l1fp + "...")
+        logging.info("Processing child projects of " + l1fp + "...")
         if new_structure[l1fp]["projects"] == None:
-            print("- None found.")
+            logging.info("- None found.")
 
         for project_name in new_structure[l1fp]["projects"]:
             project = new_structure[l1fp]["projects"][project_name]
-            print(new_structure[l1fp]["projects"][project_name])
-            print()
-            print("  * Creating project: " + l1fp + "/" + project_name)
+            logging.info("")
+            logging.info("* Creating project: " + l1fp + "/" + project_name)
             new_structure[l1fp]["projects"][project_name]["project_id"] = mock_create_project(project_name, project["path"], False, new_structure[l1fp]["project_id"])
 
             if len(project["users"].keys()) > 0:
                 users = project["users"]
                 for user_name in users:
                     mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], "AzureAD", default_user_role, l1fp + "/" + project_name, new_structure[l1fp]["projects"][project_name]["project_id"])
-                    print("        " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + project_name)
+                    logging.info("  - Creating User: " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + project_name)
 
-        print("calling recursion...")
+        logging.info("")
+        logging.info("recursing...")
         new_structure[l1fp]["folder_projects"] = process_folder_project(new_structure[l1fp], new_structure[l1fp]["project_id"])
 
     structure["folder_projects"] = new_structure
@@ -180,13 +182,12 @@ def process_folder_project(structure, parent_folder_project_id=None):
 # create_project(project_name, is_folder, parent_folder_project_id)
 # Creates the project in Wiz by calling the Wiz API.
 def create_project(project_name, is_folder, parent_folder_project_id):
-    query = wiz.get_qry_create_project()
-
-    variables = wiz.get_qry_vars_create_project(project_name, is_folder, parent_folder_project_id)
+    query = ctwiz.get_qry_create_project()
+    variables = ctwiz.get_qry_vars_create_project(project_name, is_folder, parent_folder_project_id)
 
 # TODO
 # mock_create_project(project_path)
-# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
+# Pretends to create a project in ctwiz. Instead just writes the project path it would create to the output txt file.
 
 def mock_create_project(project_name, full_path, is_folder = False, parent_project_id = None):
     f = open("mock_project_output.csv","a")
@@ -201,8 +202,8 @@ def mock_create_project(project_name, full_path, is_folder = False, parent_proje
     return project_id
 
 # TODO
-# mock_create_project(project_path)
-# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
+# mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project)
+# Pretends to create a project in ctwiz. Instead just writes the project path it would create to the output txt file.
 
 def mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project):
     f = open("mock_user_output.csv","a")
@@ -217,30 +218,17 @@ def initialise_mock_files():
 
 def main():
 
-    print("Getting token.")
-    wiz.request_wiz_api_token(client_id, client_secret)
+    logging.info("Getting token.")
+    ctwiz.request_wiz_api_token(client_id, client_secret)
 
-    print("Initialising Mock Output Files...")
+    logging.info("Initialising Mock Output Files...")
     initialise_mock_files()
     
-    print("Modelling project structure...")
+    logging.info("Modelling project structure...")
     project_structure = model_project_structure()
 
-    print("Creating project structure...")
+    logging.info("Creating project structure...")
     process_folder_project(project_structure, None)
-
-    # The above code lists the first <x> items.
-    # If paginating on a Graph Query,
-    #   then use <'quick': False> in the query variables.
-    # Uncomment the following section to paginate over all the results:
-    # pageInfo = result['data']['graphSearch']['pageInfo']
-    # while (pageInfo['hasNextPage']):
-    #     # fetch next page
-    #     variables['after'] = pageInfo['endCursor']
-    #     result = query_wiz_api(query, variables)
-    #     print(result)
-    #     pageInfo = result['data']['graphSearch']['pageInfo']
-
 
 if __name__ == '__main__':
     main()
