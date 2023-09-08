@@ -38,3 +38,32 @@ The idea behind generating these CSV files is so that it can be verified that th
     * Role: The Wiz RBAC role mapped to this user
     * Project Path: The path to the project this role is being scoped to
     * Scoped Project ID: The project ID this role is being scoped to.
+
+
+# How to run the script
+
+It's recommended to ensure you have a Python virtualenv set up, using the `requirements.txt` file provided in this repository.
+
+Make sure to create a Wiz Service Account with ONLY the following permission across all projects:
+* Type: `Custom Integration (GraphQL API)`
+* Project Scope: `All Projects`
+* API Scope: `read:all`
+
+Once loaded, create a script called `run.sh` or similar, structured similar to below:
+
+```
+export CLIENT_ID="[WIZ_CLIENT_ID]"
+export CLIENT_SECRET="[WIZ_CLIENT_SECRET]"
+export ROOT_MANAGEMENT_GROUP_ID="[MANAGEMENT_GROUP_ID]"
+export DEFAULT_USER_ROLE="[WIZ_USER_ROLE]"
+
+python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_USER_ROLE}
+
+```
+
+Where the [values] above align to as follows:
+
+* WIZ_CLIENT_ID: The client id from the generated Wiz service account
+* WIZ_CLIENT_SECRET: The client secret from the generated Wiz service account
+* MANAGEMENT_GROUP_ID: The root management group id to start generating the folder structure from
+* WIZ_USER_ROLE: The project-scoped Wiz RBAC role to assign to all users generated - it is suggested to use `ProjectReader`.

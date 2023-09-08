@@ -219,7 +219,7 @@ def get_role_bindings(subscription_id):
                 },
                 "subscriptionId": {
                     "EQUALS": [
-                        "93e2fb4e-e46a-4ee5-8be0-1a4f555eb1ff"
+                        subscription_id
                     ]
                 }
             },
