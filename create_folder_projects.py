@@ -8,20 +8,20 @@ import sys
 import ctwiz
 import logging
 
-# Expect Wiz client_id, client_secret, root_management_group_id and default_user_role to be passed in as runtime variables.
-client_id = sys.argv[1]
-client_secret = sys.argv[2]
+ARG_CLIENT_ID       = 1
+ARG_CLIENT_SECRET   = 2
+ARG_ROOT_MGT_GRP_ID = 3
+ARG_SAML_PROVIDER   = 4
+ARG_USER_ROLE       = 5
+ARG_LOG_LEVEL       = 6
 
-# Where to run the query from- i.e. the root management group id.
-root_management_group_id = sys.argv[3]
-
-default_saml_provider = sys.argv[4]
-
-# The default Wiz RBAC role to assign to users. Should be project scoped.
-default_user_role = sys.argv[5]
-
-# The logging level to set
-log_level = sys.argv[6]
+# Pass in runtime variables
+client_id                   = sys.argv[ARG_CLIENT_ID]
+client_secret               = sys.argv[ARG_CLIENT_SECRET]
+root_management_group_id    = sys.argv[ARG_ROOT_MGT_GRP_ID]
+default_saml_provider       = sys.argv[ARG_SAML_PROVIDER]
+default_user_role           = sys.argv[ARG_USER_ROLE]
+log_level                   = sys.argv[ARG_LOG_LEVEL]
 
 def set_logging_level(level):
     match level:
