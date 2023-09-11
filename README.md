@@ -59,8 +59,9 @@ export CLIENT_ID="[WIZ_CLIENT_ID]"
 export CLIENT_SECRET="[WIZ_CLIENT_SECRET]"
 export ROOT_MANAGEMENT_GROUP_ID="[MANAGEMENT_GROUP_ID]"
 export DEFAULT_USER_ROLE="[WIZ_USER_ROLE]"
+export LOGGING_LEVEL="[LOGGING_LEVEL]"
 
-python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_USER_ROLE}
+python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL}
 
 ```
 
@@ -70,3 +71,4 @@ Where the [values] above align to as follows:
 * WIZ_CLIENT_SECRET: The client secret from the generated Wiz service account
 * MANAGEMENT_GROUP_ID: The root management group id to start generating the folder structure from
 * WIZ_USER_ROLE: The project-scoped Wiz RBAC role to assign to all users generated - it is suggested to use `ProjectReader`.
+* LOGGING_LEVEL: A lower case string set to "debug", "info" "warning" "error" "critical". Leave unset to not set a logging level.

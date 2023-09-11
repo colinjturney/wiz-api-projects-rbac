@@ -20,7 +20,24 @@ default_saml_provider = sys.argv[4]
 # The default Wiz RBAC role to assign to users. Should be project scoped.
 default_user_role = sys.argv[5]
 
-logging.basicConfig(level=logging.INFO)
+# The logging level to set
+log_level = sys.argv[6]
+
+def set_logging_level(level):
+    match level:
+        case "critical":
+            logging.basicConfig(level=logging.CRITICAL)
+        case "error":
+            logging.basicConfig(level=logging.ERROR)
+        case "warning":
+            logging.basicConfig(level=logging.WARNING)
+        case "debug":
+            logging.basicConfig(level=logging.DEBUG)
+        case "info":
+            logging.basicConfig(level=logging.INFO)   
+        case _:
+            logging.info("Logging level not set")
+            logging.basicConfig(level=logging.NOTSET)
 
 # Uncomment the following section to define the proxies in your environment,
 #   if necessary:
@@ -81,7 +98,7 @@ def model_project_structure():
                 element["path"]                 = entities[0]["name"]
                 structure["folder_projects"][entities[0]["name"]] = element
 
-            #entity1: cloud organization - member of entity0 tenant root group
+        #entity1: cloud organization - member of entity0 tenant root group
 
         if entities[1] != None:
             if entities[1]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"].keys():
@@ -93,7 +110,7 @@ def model_project_structure():
                 element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"]
                 structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]] = element
 
-            #entity2: subscription - member of entity1 cloud org
+        #entity2: subscription - member of entity1 cloud org
             
         if entities[2] != None:
             if entities[2]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"].keys():                
@@ -105,7 +122,7 @@ def model_project_structure():
 
                 structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = element
 
-            #entity3: cloud organization - member of entity1 cloud org
+        #entity3: cloud organization - member of entity1 cloud org
 
         if entities[3] != None:               
             if entities[3]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"].keys():
@@ -118,7 +135,7 @@ def model_project_structure():
                 
                 structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]] = element
 
-            #entity4: subscription - member of entity3 cloud org
+        #entity4: subscription - member of entity3 cloud org
 
         if entities[4] != None:
             if entities[4]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"].keys():
@@ -130,7 +147,7 @@ def model_project_structure():
 
                 structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
                     
-            #entity5: subscription - member of tenant root management group
+        #entity5: subscription - member of tenant root management group
 
         if entities[5] != None:
             if entities[5]["name"] not in structure["folder_projects"][entities[0]["name"]]["projects"].keys():
@@ -174,7 +191,7 @@ def process_folder_project(structure, parent_folder_project_id=None):
                     logging.info("  - Created User: " + users[user_name]["display_name"] + "(" + users[user_name]["email_address"] + "): " + default_user_role + " on " + l1fp + "/" + project_name)
 
         logging.info("")
-        logging.info("recursing...")
+        logging.info("process_folder_project - recursing into next folder project level...")
         new_structure[l1fp]["folder_projects"] = process_folder_project(new_structure[l1fp], new_structure[l1fp]["project_id"])
 
     structure["folder_projects"] = new_structure
@@ -238,6 +255,8 @@ def initialise_mock_files():
     g.write("Project Name,Project Path,Is Folder,Project ID, Parent Project ID\n")
 
 def main():
+
+    set_logging_level(log_level)
 
     logging.info("Getting token.")
     ctwiz.request_wiz_api_token(client_id, client_secret)
