@@ -177,13 +177,13 @@ def get_qry_role_bindings():
 
 def get_qry_vars_role_bindings(subscription_id):
     return {
-        "quick": True,
+        "quick": False,
         "fetchPublicExposurePaths": True,
         "fetchInternalExposurePaths": False,
         "fetchIssueAnalytics": False,
         "fetchLateralMovement": True,
         "fetchKubernetes": False,
-        "first": 50,
+        "first": 500,
         "query": {
             "type": [
             "SUBSCRIPTION"
@@ -349,13 +349,13 @@ def get_qry_project_structure():
 
 def get_qry_vars_project_structure(root_management_group_id):
     return {
-        "quick": True,
+        "quick": False,
         "fetchPublicExposurePaths": True,
         "fetchInternalExposurePaths": False,
         "fetchIssueAnalytics": False,
         "fetchLateralMovement": True,
         "fetchKubernetes": False,
-        "first": 50,
+        "first": 500,
         "query": {
             "type": [
             "CLOUD_ORGANIZATION"
@@ -447,18 +447,6 @@ def get_qry_vars_project_structure(root_management_group_id):
         "projectId": "*",
         "fetchTotalCount": False
     }
-
-    # The above code lists the first <x> items.
-    # If paginating on a Graph Query,
-    #   then use <'quick': False> in the query variables.
-    # Uncomment the following section to paginate over all the results:
-    # pageInfo = result['data']['graphSearch']['pageInfo']
-    # while (pageInfo['hasNextPage']):
-    #     # fetch next page
-    #     variables['after'] = pageInfo['endCursor']
-    #     result = query_wiz_api(query, variables)
-    #     print(result)
-    #     pageInfo = result['data']['graphSearch']['pageInfo']
 
 def get_qry_create_project():
     return ("""

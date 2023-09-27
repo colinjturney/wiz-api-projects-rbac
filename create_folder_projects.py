@@ -56,6 +56,16 @@ def get_role_bindings(subscription_id):
     variables   = ctwiz.get_qry_vars_role_bindings(subscription_id)
     results     = ctwiz.query_wiz_api(query, variables)
 
+    # Pagination
+    page_info = results["data"]["graphSearch"]["pageInfo"]
+
+    while(page_info["hasNextPage"]):
+        logging.info("Paginating on get_role_bindings")
+        variables["after"] = page_info["endCursor"]
+        this_results = ctwiz.query_wiz_api(query, variables)
+        results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
+        page_info = this_results["data"]["graphSearch"]["pageInfo"]
+
     # Adding to dict to ensure duplicate results won't be added.
     role_bindings = {}
 
@@ -64,9 +74,9 @@ def get_role_bindings(subscription_id):
         entities = result["entities"]
 
         if entities[2] != None:
-            role_bindings[entities[2]["properties"]["otherMails"]] = {
+            role_bindings[entities[2]["properties"]["userPrincipalName"]] = {
                 "display_name" : entities[2]["properties"]["displayName"],
-                "email_address"  : entities[2]["properties"]["otherMails"]
+                "email_address"  : entities[2]["properties"]["userPrincipalName"]
             }
 
     return role_bindings
@@ -77,6 +87,16 @@ def model_project_structure():
     query       = ctwiz.get_qry_project_structure()
     variables   = ctwiz.get_qry_vars_project_structure(root_management_group_id)
     results     = ctwiz.query_wiz_api(query, variables)
+
+    # Pagination
+    page_info = results["data"]["graphSearch"]["pageInfo"]
+
+    while(page_info["hasNextPage"]):
+        logging.info("Paginating on model_project_structure")
+        variables["after"] = page_info["endCursor"]
+        this_results = ctwiz.query_wiz_api(query, variables)
+        results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
+        page_info = this_results["data"]["graphSearch"]["pageInfo"]
 
     # Initialise structure
     structure = {}
