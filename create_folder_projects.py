@@ -167,18 +167,43 @@ def model_project_structure():
 
                 structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
                     
-        #entity5: subscription - member of tenant root management group
-
-        if entities[5] != None:
-            if entities[5]["name"] not in structure["folder_projects"][entities[0]["name"]]["projects"].keys():
+        #entity5: cloud organization - member of entity3 cloud org
+        
+        if entities[5] != None:               
+            if entities[5]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"].keys():
                 element                         = {}
-                element["users"]                = get_role_bindings(entities[5]["properties"]["subscriptionExternalId"])
+                element["folder_projects"]      = {}
+                element["projects"]             = {}
+                element["project_id"]           = None
+                element["is_folder_project"]    = True
+                element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"]
+                
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]] = element
+
+        #entity6: subscription - member of entity5 cloud org
+
+        if entities[6] != None:
+            if entities[6]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["projects"].keys():
+                element                         = {}
+                element["users"]                = get_role_bindings(entities[6]["properties"]["subscriptionExternalId"])
                 element["project_id"]           = None
                 element["is_folder_project"]    = False
-                element["path"]                 = entities[0]["name"] + "/" + entities[5]["name"]
+                element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[6]["name"]
 
-                structure["folder_projects"][entities[0]["name"]]["projects"][(entities[5]["name"])] = element
-    
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
+
+          #entity7: subscription - member of entity0 cloud org
+
+        if entities[7] != None:
+            if entities[7]["name"] not in structure["folder_projects"][entities[0]["name"]]["projects"].keys():
+                element                         = {}
+                element["users"]                = get_role_bindings(entities[7]["properties"]["subscriptionExternalId"])
+                element["project_id"]           = None
+                element["is_folder_project"]    = False
+                element["path"]                 = entities[0]["name"] + "/" + entities[7]["name"]
+
+                structure["folder_projects"][entities[0]["name"]]["projects"][entities[7]["name"]] = element
+
     structure["folder_projects"] = structure["folder_projects"]
 
     return structure

@@ -349,104 +349,134 @@ def get_qry_project_structure():
 
 def get_qry_vars_project_structure(root_management_group_id):
     return {
-        "quick": False,
-        "fetchPublicExposurePaths": True,
-        "fetchInternalExposurePaths": False,
-        "fetchIssueAnalytics": False,
-        "fetchLateralMovement": True,
-        "fetchKubernetes": False,
-        "first": 500,
-        "query": {
-            "type": [
+  "quick": False,
+  "fetchPublicExposurePaths": True,
+  "fetchInternalExposurePaths": False,
+  "fetchIssueAnalytics": False,
+  "fetchLateralMovement": True,
+  "fetchKubernetes": False,
+  "first": 500,
+  "query": {
+    "type": [
+      "CLOUD_ORGANIZATION"
+    ],
+    "select": True,
+    "where": {
+      "externalId": {
+        "EQUALS": [
+          root_management_group_id
+        ]
+      }
+    },
+    "relationships": [
+      {
+        "type": [
+          {
+            "type": "CONTAINS"
+          }
+        ],
+        "with": {
+          "type": [
             "CLOUD_ORGANIZATION"
-            ],
-            "select": True,
-            "where": {
-            "externalId": {
-                "EQUALS": [
-                root_management_group_id
-                ]
-            }
-            },
-            "relationships": [
+          ],
+          "select": True,
+          "relationships": [
             {
-                "type": [
+              "type": [
                 {
-                    "type": "CONTAINS"
+                  "type": "CONTAINS"
                 }
-                ],
-                "with": {
+              ],
+              "optional": True,
+              "with": {
                 "type": [
-                    "CLOUD_ORGANIZATION"
+                  "SUBSCRIPTION"
+                ],
+                "select": True
+              }
+            },
+            {
+              "type": [
+                {
+                  "type": "CONTAINS"
+                }
+              ],
+              "optional": True,
+              "with": {
+                "type": [
+                  "CLOUD_ORGANIZATION"
                 ],
                 "select": True,
                 "relationships": [
-                    {
+                  {
                     "type": [
-                        {
+                      {
                         "type": "CONTAINS"
-                        }
+                      }
                     ],
-                    "optional": True,
                     "with": {
-                        "type": [
+                      "type": [
                         "SUBSCRIPTION"
-                        ],
-                        "select": True
-                    }
+                      ],
+                      "select": True
                     },
-                    {
+                    "optional": True
+                  },
+                  {
                     "type": [
-                        {
+                      {
                         "type": "CONTAINS"
-                        }
+                      }
                     ],
                     "optional": True,
                     "with": {
-                        "type": [
+                      "type": [
                         "CLOUD_ORGANIZATION"
-                        ],
-                        "select": True,
-                        "relationships": [
+                      ],
+                      "select": True,
+                      "relationships": [
                         {
-                            "type": [
+                          "type": [
                             {
-                                "type": "CONTAINS"
+                              "type": "CONTAINS"
                             }
-                            ],
-                            "with": {
+                          ],
+                          "with": {
                             "type": [
-                                "SUBSCRIPTION"
+                              "SUBSCRIPTION"
                             ],
                             "select": True
-                            },
-                            "optional": True
+                          },
+                          "optional": True
                         }
-                        ]
+                      ]
                     }
-                    }
+                  }
                 ]
-                }
-            },
-            {
-                "type": [
-                {
-                    "type": "CONTAINS"
-                }
-                ],
-                "optional": True,
-                "with": {
-                "type": [
-                    "SUBSCRIPTION"
-                ],
-                "select": True
-                }
+              }
             }
-            ]
-        },
-        "projectId": "*",
-        "fetchTotalCount": False
-    }
+          ]
+        }
+      },
+      {
+        "type": [
+          {
+            "type": "CONTAINS"
+          }
+        ],
+        "optional": True,
+        "with": {
+          "type": [
+            "SUBSCRIPTION"
+          ],
+          "select": True
+        }
+      }
+    ]
+  },
+  "projectId": "*",
+  "fetchTotalCount": False
+}
 
 def get_qry_create_project():
     return ("""
