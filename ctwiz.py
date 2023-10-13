@@ -5,7 +5,7 @@ import logging
 HEADERS_AUTH = {"Content-Type": "application/x-www-form-urlencoded"}
 HEADERS = {"Content-Type": "application/json"}
 
-def query_wiz_api(query, variables):
+def query_wiz_api(query, variables, wiz_dc):
     """Query Wiz API for the given query data schema"""
     data = {"variables": variables, "query": query}
 
@@ -14,7 +14,7 @@ def query_wiz_api(query, variables):
         # to run behind proxies
         # result = requests.post(url="https://api.us20.app.wiz.io/graphql",
         #                        json=data, headers=HEADERS, proxies=proxyDict)
-        result = requests.post(url="https://api.us20.app.wiz.io/graphql",
+        result = requests.post(url="https://api." + wiz_dc + ".app.wiz.io/graphql",
                                json=data, headers=HEADERS, timeout=60)
 
     except Exception as e:

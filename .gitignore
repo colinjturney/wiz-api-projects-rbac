@@ -1,5 +1,5 @@
 __pycache__
-run.sh
+*run.sh
 output.txt
 *.json
 *.csv

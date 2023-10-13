@@ -14,6 +14,7 @@ ARG_ROOT_MGT_GRP_ID = 3
 ARG_SAML_PROVIDER   = 4
 ARG_USER_ROLE       = 5
 ARG_LOG_LEVEL       = 6
+ARG_WIZ_DATACENTER  = 7
 
 # Pass in runtime variables
 client_id                   = sys.argv[ARG_CLIENT_ID]
@@ -22,6 +23,7 @@ root_management_group_id    = sys.argv[ARG_ROOT_MGT_GRP_ID]
 default_saml_provider       = sys.argv[ARG_SAML_PROVIDER]
 default_user_role           = sys.argv[ARG_USER_ROLE]
 log_level                   = sys.argv[ARG_LOG_LEVEL]
+wiz_datacenter              = sys.argv[ARG_WIZ_DATACENTER]
 
 def set_logging_level(level):
     match level:
@@ -54,7 +56,7 @@ def get_role_bindings(subscription_id):
 
     query       = ctwiz.get_qry_role_bindings()
     variables   = ctwiz.get_qry_vars_role_bindings(subscription_id)
-    results     = ctwiz.query_wiz_api(query, variables)
+    results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
     # Pagination
     page_info = results["data"]["graphSearch"]["pageInfo"]
@@ -62,7 +64,7 @@ def get_role_bindings(subscription_id):
     while(page_info["hasNextPage"]):
         logging.info("Paginating on get_role_bindings")
         variables["after"] = page_info["endCursor"]
-        this_results = ctwiz.query_wiz_api(query, variables)
+        this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
         results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
         page_info = this_results["data"]["graphSearch"]["pageInfo"]
 
@@ -86,7 +88,7 @@ def model_project_structure():
 
     query       = ctwiz.get_qry_project_structure()
     variables   = ctwiz.get_qry_vars_project_structure(root_management_group_id)
-    results     = ctwiz.query_wiz_api(query, variables)
+    results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
     # Pagination
     page_info = results["data"]["graphSearch"]["pageInfo"]
@@ -94,16 +96,27 @@ def model_project_structure():
     while(page_info["hasNextPage"]):
         logging.info("Paginating on model_project_structure")
         variables["after"] = page_info["endCursor"]
-        this_results = ctwiz.query_wiz_api(query, variables)
+        this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
         results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
         page_info = this_results["data"]["graphSearch"]["pageInfo"]
 
+    logging.info("Exited Pagination")
+
     # Initialise structure
+    
     structure = {}
     structure["folder_projects"] = {}
     structure["projects"]        = {}
 
+    logging.info(str(len(results["data"]["graphSearch"]["nodes"])) + " Results fetched")
+    i = 0
+
+
     for result in results["data"]["graphSearch"]["nodes"]:
+        i = i + 1
+        
+        logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
+        
         entities = result["entities"]
 
         # Some rows returned are empty if there is no matching entity at the level of the graph, so we'll ignore these if = None.
@@ -190,7 +203,7 @@ def model_project_structure():
                 element["is_folder_project"]    = False
                 element["path"]                 = entities[0]["name"] + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[6]["name"]
 
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
+                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["projects"][entities[6]["name"]] = element
 
           #entity7: subscription - member of entity0 cloud org
 
