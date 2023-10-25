@@ -61,8 +61,9 @@ export ROOT_MANAGEMENT_GROUP_ID="[MANAGEMENT_GROUP_ID]"
 export DEFAULT_SAML_PROVIDER="[SAML_PROVIDER]"
 export DEFAULT_USER_ROLE="[WIZ_USER_ROLE]"
 export LOGGING_LEVEL="[LOGGING_LEVEL]"
+export WIZ_DATACENTER="WIZ_DATACENTER"
 
-python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL}
+python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL} ${WIZ_DATACENTER}
 
 ```
 
@@ -74,3 +75,4 @@ Where the [values] above align to as follows:
 * SAML_PROVIDER: The name of the SAML provider being used.
 * WIZ_USER_ROLE: The project-scoped Wiz RBAC role to assign to all users generated - it is suggested to use `ProjectReader`.
 * LOGGING_LEVEL: A lower case string set to "debug", "info" "warning" "error" "critical". Leave unset to not set a logging level.
+* WIZ_DATACENTER: A lower case string set to the name of the Wiz DC used by your tenant (e.g. eu7)
