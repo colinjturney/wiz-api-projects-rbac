@@ -347,16 +347,16 @@ def get_qry_project_structure():
         }
     """
 
-def get_qry_vars_project_structure(root_management_group_id):
-    return {
-  "quick": False,
-  "fetchPublicExposurePaths": True,
-  "fetchInternalExposurePaths": False,
-  "fetchIssueAnalytics": False,
-  "fetchLateralMovement": True,
-  "fetchKubernetes": False,
-  "first": 500,
-  "query": {
+def get_qry_vars_project_structure_excl_burners(root_management_group_id, burner_mg_id):
+  return {
+    "quick": False,
+    "fetchPublicExposurePaths": True,
+    "fetchInternalExposurePaths": False,
+    "fetchIssueAnalytics": False,
+    "fetchLateralMovement": True,
+    "fetchKubernetes": False,
+    "first": 500,
+    "query": {
     "type": [
       "CLOUD_ORGANIZATION"
     ],
@@ -414,13 +414,13 @@ def get_qry_vars_project_structure(root_management_group_id):
                         "type": "CONTAINS"
                       }
                     ],
+                    "optional": True,
                     "with": {
                       "type": [
                         "SUBSCRIPTION"
                       ],
                       "select": True
-                    },
-                    "optional": True
+                    }
                   },
                   {
                     "type": [
@@ -441,21 +441,42 @@ def get_qry_vars_project_structure(root_management_group_id):
                               "type": "CONTAINS"
                             }
                           ],
+                          "optional": True,
                           "with": {
                             "type": [
                               "SUBSCRIPTION"
                             ],
                             "select": True
-                          },
-                          "optional": True
+                          }
                         }
-                      ]
+                      ],
+                      "where": {
+                        "externalId": {
+                          "NOT_EQUALS": [
+                            burner_mg_id
+                          ]
+                        }
+                      }
                     }
                   }
-                ]
+                ],
+                "where": {
+                  "externalId": {
+                    "NOT_EQUALS": [
+                      burner_mg_id
+                    ]
+                  }
+                }
               }
             }
-          ]
+          ],
+          "where": {
+            "externalId": {
+              "NOT_EQUALS": [
+                burner_mg_id
+              ]
+            }
+          }
         }
       },
       {
@@ -473,7 +494,145 @@ def get_qry_vars_project_structure(root_management_group_id):
         }
       }
     ]
-  },
+  }, 
+  "projectId": "*",
+  "fetchTotalCount": False
+}
+
+def get_qry_vars_project_structure_burners(root_management_group_id, burner_mg_id):
+  return {
+    "quick": False,
+    "fetchPublicExposurePaths": True,
+    "fetchInternalExposurePaths": False,
+    "fetchIssueAnalytics": False,
+    "fetchLateralMovement": True,
+    "fetchKubernetes": False,
+    "first": 500,
+    "query": {
+    "type": [
+      "CLOUD_ORGANIZATION"
+    ],
+    "select": True,
+    "where": {
+      "externalId": {
+        "EQUALS": [
+          root_management_group_id
+        ]
+      }
+    },
+    "relationships": [
+      {
+        "type": [
+          {
+            "type": "CONTAINS"
+          }
+        ],
+        "with": {
+          "type": [
+            "CLOUD_ORGANIZATION"
+          ],
+          "select": True,
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "CONTAINS"
+                }
+              ],
+              "optional": True,
+              "with": {
+                "type": [
+                  "SUBSCRIPTION"
+                ],
+                "select": True
+              }
+            },
+            {
+              "type": [
+                {
+                  "type": "CONTAINS"
+                }
+              ],
+              "optional": True,
+              "with": {
+                "type": [
+                  "CLOUD_ORGANIZATION"
+                ],
+                "select": True,
+                "where": {
+                  "externalId": {
+                    "EQUALS": [
+                      burner_mg_id
+                    ]
+                  }
+                },
+                "relationships": [
+                  {
+                    "type": [
+                      {
+                        "type": "CONTAINS"
+                      }
+                    ],
+                    "optional": True,
+                    "with": {
+                      "type": [
+                        "SUBSCRIPTION"
+                      ],
+                      "select": True
+                    }
+                  },
+                  {
+                    "type": [
+                      {
+                        "type": "CONTAINS"
+                      }
+                    ],
+                    "optional": True,
+                    "with": {
+                      "type": [
+                        "CLOUD_ORGANIZATION"
+                      ],
+                      "select": True,
+                      "relationships": [
+                        {
+                          "type": [
+                            {
+                              "type": "CONTAINS"
+                            }
+                          ],
+                          "optional": True,
+                          "with": {
+                            "type": [
+                              "SUBSCRIPTION"
+                            ],
+                            "select": True
+                          }
+                        }
+                      ],
+                    }
+                  }
+                ],
+              }
+            }
+          ],
+        }
+      },
+      {
+        "type": [
+          {
+            "type": "CONTAINS"
+          }
+        ],
+        "optional": True,
+        "with": {
+          "type": [
+            "SUBSCRIPTION"
+          ],
+          "select": True
+        }
+      }
+    ]
+  }, 
   "projectId": "*",
   "fetchTotalCount": False
 }
