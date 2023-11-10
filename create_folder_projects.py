@@ -316,10 +316,10 @@ def add_to_users_dict(display_name, email_address, saml_provider, role, scoped_p
 def generate_user_import_file():
 
     f = open("user_import_file.csv","w")
-    f.write("full_name,role,projects,email\n")
+    f.write("full_name,role,projects,email,projects_count\n")
 
     for email_address in users:
-        f.write(users[email_address]["display_name"] + "," + users[email_address]["role"] + "," + str(list(users[email_address]["scoped_projects"])) + "," + email_address + "\n")
+        f.write(users[email_address]["display_name"] + "," + users[email_address]["role"] + "," + str(list(users[email_address]["scoped_projects"])) + "," + email_address + "," + str(len(users[email_address]["scoped_projects"])) + "\n")
 
 # TODO
 # mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project)
