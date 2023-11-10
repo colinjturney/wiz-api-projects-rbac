@@ -15,6 +15,7 @@ ARG_SAML_PROVIDER   = 4
 ARG_USER_ROLE       = 5
 ARG_LOG_LEVEL       = 6
 ARG_WIZ_DATACENTER  = 7
+ARG_AZURE_BURNER_MG = 8
 
 # Pass in runtime variables
 client_id                   = sys.argv[ARG_CLIENT_ID]
@@ -24,6 +25,7 @@ default_saml_provider       = sys.argv[ARG_SAML_PROVIDER]
 default_user_role           = sys.argv[ARG_USER_ROLE]
 log_level                   = sys.argv[ARG_LOG_LEVEL]
 wiz_datacenter              = sys.argv[ARG_WIZ_DATACENTER]
+azure_burner_mg             = sys.argv[ARG_AZURE_BURNER_MG]
 
 def set_logging_level(level):
     match level:
@@ -84,10 +86,16 @@ def get_role_bindings(subscription_id):
     return role_bindings
 
 
-def model_project_structure():
+def model_project_structure(burner_mode):
 
     query       = ctwiz.get_qry_project_structure()
-    variables   = ctwiz.get_qry_vars_project_structure(root_management_group_id)
+    variables   = {}
+
+    if burner_mode == True:
+        variables   = ctwiz.get_qry_vars_project_structure_burners(root_management_group_id, azure_burner_mg)
+    else:
+         variables   = ctwiz.get_qry_vars_project_structure_excl_burners(root_management_group_id, azure_burner_mg)       
+    
     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
     # Pagination
@@ -111,7 +119,6 @@ def model_project_structure():
     logging.info(str(len(results["data"]["graphSearch"]["nodes"])) + " Results fetched")
     i = 0
 
-
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
         
@@ -121,9 +128,11 @@ def model_project_structure():
 
         # Some rows returned are empty if there is no matching entity at the level of the graph, so we'll ignore these if = None.
         #entity0: tenant root group
+
         if entities[0] != None:
             if entities[0]["name"] not in structure["folder_projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[0]["properties"]["externalId"]
                 element["folder_projects"]      = {}
                 element["projects"]             = {}
                 element["project_id"]           = None
@@ -136,6 +145,7 @@ def model_project_structure():
         if entities[1] != None:
             if entities[1]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[1]["properties"]["externalId"]              
                 element["folder_projects"]      = {}
                 element["projects"]             = {}
                 element["project_id"]           = None
@@ -148,6 +158,7 @@ def model_project_structure():
         if entities[2] != None:
             if entities[2]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"].keys():                
                 element                         = {}
+                element["external_id"]          = entities[2]["properties"]["externalId"]             
                 element["users"]                = get_role_bindings(entities[2]["properties"]["subscriptionExternalId"])
                 element["project_id"]           = None
                 element["is_folder_project"]    = False
@@ -160,6 +171,7 @@ def model_project_structure():
         if entities[3] != None:               
             if entities[3]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[3]["properties"]["externalId"]   
                 element["folder_projects"]      = {}
                 element["projects"]             = {}
                 element["project_id"]           = None
@@ -173,6 +185,7 @@ def model_project_structure():
         if entities[4] != None:
             if entities[4]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[4]["properties"]["externalId"]
                 element["users"]                = get_role_bindings(entities[4]["properties"]["subscriptionExternalId"])
                 element["project_id"]           = None
                 element["is_folder_project"]    = False
@@ -185,6 +198,7 @@ def model_project_structure():
         if entities[5] != None:               
             if entities[5]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[5]["properties"]["externalId"]
                 element["folder_projects"]      = {}
                 element["projects"]             = {}
                 element["project_id"]           = None
@@ -198,6 +212,7 @@ def model_project_structure():
         if entities[6] != None:
             if entities[6]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[6]["properties"]["externalId"]
                 element["users"]                = get_role_bindings(entities[6]["properties"]["subscriptionExternalId"])
                 element["project_id"]           = None
                 element["is_folder_project"]    = False
@@ -210,6 +225,7 @@ def model_project_structure():
         if entities[7] != None:
             if entities[7]["name"] not in structure["folder_projects"][entities[0]["name"]]["projects"].keys():
                 element                         = {}
+                element["external_id"]          = entities[7]["properties"]["externalId"]
                 element["users"]                = get_role_bindings(entities[7]["properties"]["subscriptionExternalId"])
                 element["project_id"]           = None
                 element["is_folder_project"]    = False
@@ -221,14 +237,14 @@ def model_project_structure():
 
     return structure
 
-def process_folder_project(structure, parent_folder_project_id=None):
+def process_folder_project(structure, parent_folder_project_id=None, burner_mode=False):
 
     new_structure = structure["folder_projects"]
 
     for l1fp in new_structure:
         
         logging.info("Creating folder project: " + new_structure[l1fp]["path"])
-        new_structure[l1fp]["project_id"] = mock_create_project(l1fp, new_structure[l1fp]["path"], new_structure[l1fp]["is_folder_project"], parent_folder_project_id)
+        new_structure[l1fp]["project_id"] = mock_create_project(l1fp, new_structure[l1fp]["path"], new_structure[l1fp]["is_folder_project"], parent_folder_project_id, burner_mode)
         logging.info("")
 
         logging.info("Processing child projects of " + l1fp + "...")
@@ -239,9 +255,9 @@ def process_folder_project(structure, parent_folder_project_id=None):
             project = new_structure[l1fp]["projects"][project_name]
             logging.info("")
             logging.info("* Creating project: " + l1fp + "/" + project_name)
-            new_structure[l1fp]["projects"][project_name]["project_id"] = mock_create_project(project_name, project["path"], False, new_structure[l1fp]["project_id"])
+            new_structure[l1fp]["projects"][project_name]["project_id"] = mock_create_project(project_name, project["path"], False, new_structure[l1fp]["project_id"], burner_mode)
 
-            if len(project["users"].keys()) > 0:
+            if len(project["users"].keys()) > 0 and burner_mode == False:
                 users = project["users"]
                 for user_name in users:
                     mock_provision_user(users[user_name]["display_name"], users[user_name]["email_address"], default_saml_provider, default_user_role, l1fp + "/" + project_name, new_structure[l1fp]["projects"][project_name]["project_id"])
@@ -250,7 +266,7 @@ def process_folder_project(structure, parent_folder_project_id=None):
 
         logging.info("")
         logging.info("process_folder_project - recursing into next folder project level...")
-        new_structure[l1fp]["folder_projects"] = process_folder_project(new_structure[l1fp], new_structure[l1fp]["project_id"])
+        new_structure[l1fp]["folder_projects"] = process_folder_project(new_structure[l1fp], new_structure[l1fp]["project_id"], burner_mode)
 
     structure["folder_projects"] = new_structure
 
@@ -260,12 +276,20 @@ def process_folder_project(structure, parent_folder_project_id=None):
 # mock_create_project(project_path)
 # Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
 
-def mock_create_project(project_name, full_path, is_folder = False, parent_project_id = None):
-    f = open("mock_project_output.csv","a")
+def mock_create_project(project_name, full_path, is_folder = False, parent_project_id = None, burner_mode = False):
+
+    filename = ""
+
+    if burner_mode == True:
+        filename = "mock_project_output_burners.csv"
+    else:
+        filename = "mock_project_output.csv"
+
+    f = open(filename, "a")
+
     project_id = project_name + "-0000-0000"
 
     if parent_project_id == None:
-        "Project Name,Project Path,Is Folder,Project ID, Parent Project ID"
         f.write(project_name + "," + full_path + "," + str(is_folder) + "," + project_id + "," + "\n")
     else:
         f.write(project_name + "," + full_path + "," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")  
@@ -292,10 +316,10 @@ def add_to_users_dict(display_name, email_address, saml_provider, role, scoped_p
 def generate_user_import_file():
 
     f = open("user_import_file.csv","w")
-    f.write("full_name,role,projects,email\n")
+    f.write("full_name,role,projects,email,projects_count\n")
 
     for email_address in users:
-        f.write(users[email_address]["display_name"] + "," + users[email_address]["role"] + "," + str(list(users[email_address]["scoped_projects"])) + "," + email_address + "\n")
+        f.write(users[email_address]["display_name"] + "," + users[email_address]["role"] + "," + str(list(users[email_address]["scoped_projects"])) + "," + email_address + "," + str(len(users[email_address]["scoped_projects"])) + "\n")
 
 # TODO
 # mock_provision_user(display_name, email_address, saml_provider, role, project_path, scoped_project)
@@ -312,6 +336,9 @@ def initialise_mock_files():
     g = open("mock_project_output.csv","w")
     g.write("Project Name,Project Path,Is Folder,Project ID, Parent Project ID\n")
 
+    g = open("mock_project_output_burners.csv","w")
+    g.write("Project Name,Project Path,Is Folder,Project ID, Parent Project ID\n")
+
 def main():
 
     set_logging_level(log_level)
@@ -323,10 +350,16 @@ def main():
     initialise_mock_files()
     
     logging.info("Modelling project structure...")
-    project_structure = model_project_structure()
+    project_structure = model_project_structure(False)
 
     logging.info("Creating project structure...")
-    process_folder_project(project_structure, None)
+    process_folder_project(project_structure, None, False)
+
+    logging.info("Modelling project structure (burners)...")
+    burner_project_structure = model_project_structure(True)
+
+    logging.info("Creating project structure (burners)...")
+    process_folder_project(burner_project_structure, None, True)
 
     logging.info("Generating user import file...")
     generate_user_import_file()

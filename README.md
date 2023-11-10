@@ -62,8 +62,9 @@ export DEFAULT_SAML_PROVIDER="[SAML_PROVIDER]"
 export DEFAULT_USER_ROLE="[WIZ_USER_ROLE]"
 export LOGGING_LEVEL="[LOGGING_LEVEL]"
 export WIZ_DATACENTER="WIZ_DATACENTER"
+export AZURE_BURNER_MG="AZURE_BURNER_MG"
 
-python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL} ${WIZ_DATACENTER}
+python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL} ${WIZ_DATACENTER} ${AZURE_BURNER_MG}
 
 ```
 
@@ -76,3 +77,4 @@ Where the [values] above align to as follows:
 * WIZ_USER_ROLE: The project-scoped Wiz RBAC role to assign to all users generated - it is suggested to use `ProjectReader`.
 * LOGGING_LEVEL: A lower case string set to "debug", "info" "warning" "error" "critical". Leave unset to not set a logging level.
 * WIZ_DATACENTER: A lower case string set to the name of the Wiz DC used by your tenant (e.g. eu7)
+* AZURE_BURNER_MG: The id of the management group containing subscriptions/management groups that should not be added to a Wiz project
