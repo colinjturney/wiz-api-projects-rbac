@@ -396,11 +396,12 @@ def main():
 
     logging.info("Modelling project structure (burners)...")
     model_project_structure(True, azure_root_management_group_id, "Azure")
-    model_project_structure(True, gcp_organization_id, "GCP")
+    # Skip GCP burners for now- too many results appears to be the problem here.
+    #model_project_structure(True, gcp_organization_id, "GCP")
 
     logging.info("Creating project structure (burners)...")
     process_folder_project(root_burner_structure["Azure"], None, True)
-    # Skip GCP for now- too many results appears to be the problem here.
+    # Skip GCP burners for now- too many results appears to be the problem here.
     #process_folder_project(root_burner_structure["GCP"], None, True)
     # No burner mode needed for AWS
 
