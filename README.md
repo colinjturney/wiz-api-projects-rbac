@@ -63,8 +63,11 @@ export DEFAULT_USER_ROLE="[WIZ_USER_ROLE]"
 export LOGGING_LEVEL="[LOGGING_LEVEL]"
 export WIZ_DATACENTER="WIZ_DATACENTER"
 export AZURE_BURNER_MG="AZURE_BURNER_MG"
+export GCP_ORGANIZATION_ID="GCP_ORGANIZATION_ID"
+export GCP_BURNER_FOLDER_ID="GCP_BURNER_FOLDER_ID"
+export AWS_ROOT_ORG_ID="AWS_ROOT_ORG_ID"
 
-python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL} ${WIZ_DATACENTER} ${AZURE_BURNER_MG}
+python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL} ${WIZ_DATACENTER} ${AZURE_BURNER_MG} ${GCP_ORGANIZATION_ID} ${GCP_BURNER_FOLDER_ID} ${AWS_ROOT_ORG_ID}
 
 ```
 
@@ -78,3 +81,8 @@ Where the [values] above align to as follows:
 * LOGGING_LEVEL: A lower case string set to "debug", "info" "warning" "error" "critical". Leave unset to not set a logging level.
 * WIZ_DATACENTER: A lower case string set to the name of the Wiz DC used by your tenant (e.g. eu7)
 * AZURE_BURNER_MG: The id of the management group containing subscriptions/management groups that should not be added to a Wiz project
+* GCP_ORGANIZATION_ID: THe id of the GCP organization that should be treated as the root organization for the purpose of building out projects in Wiz
+* GCP_BURNER_FOLDER_ID: The id of a GCP folder that contains subscriptions/further folders that should not be added to a Wiz project
+* AWS_ROOT_ORG_ID: The id of the AWS root organization that should be treated as root for the purpose of building out projects in Wiz.
+
+python create_folder_projects.py ${CLIENT_ID} ${CLIENT_SECRET} ${AZURE_ROOT_MANAGEMENT_GROUP_ID} ${DEFAULT_SAML_PROVIDER} ${DEFAULT_USER_ROLE} ${LOGGING_LEVEL} ${WIZ_DATACENTER} ${AZURE_BURNER_MG} ${GCP_ORGANIZATION_ID} ${GCP_BURNER_FOLDER_ID} ${AWS_ROOT_ORG_ID}
