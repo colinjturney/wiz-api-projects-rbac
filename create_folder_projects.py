@@ -395,7 +395,7 @@ def main():
     root_structure["AWS"]   = process_folder_project(root_structure["AWS"], None, False)
 
     logging.info("Modelling project structure (burners)...")
-    model_project_structure(True, azure_root_management_group_id "Azure")
+    model_project_structure(True, azure_root_management_group_id, "Azure")
     model_project_structure(True, gcp_organization_id, "GCP")
 
     logging.info("Creating project structure (burners)...")
