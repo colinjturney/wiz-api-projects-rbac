@@ -218,8 +218,8 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
         
-        if i == 101:
-            break
+        #if i == 101:
+        #    break
 
         logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
         
@@ -397,9 +397,9 @@ def mock_create_project(subscription_id, project_name, full_path, is_folder = Fa
     project_id = project_name + "-0000-0000"
 
     if parent_project_id == None:
-        f.write(project_name + "," + full_path + "," + str(is_folder) + "," + project_id + "\n")
+        f.write("\"" + project_name + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "\n")
     else:
-        f.write(project_name + "," + full_path + "," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")  
+        f.write("\"" + project_name + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")  
 
     return project_id
 
