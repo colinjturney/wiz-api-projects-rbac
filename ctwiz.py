@@ -237,6 +237,231 @@ def get_qry_vars_role_bindings(subscription_id, cloud):
         "fetchTotalCount": False
     }
 
+def get_qry_grp_role_bindings():
+    return ("""
+    query GraphSearch($query: GraphEntityQueryInput, $controlId: ID, $projectId: String!, $first: Int, $after: String, $fetchTotalCount: Boolean!, $quick: Boolean = true, $fetchPublicExposurePaths: Boolean = false, $fetchInternalExposurePaths: Boolean = false, $fetchIssueAnalytics: Boolean = false, $fetchLateralMovement: Boolean = false, $fetchKubernetes: Boolean = false) {
+      graphSearch(
+        query: $query
+        controlId: $controlId
+        projectId: $projectId
+        first: $first
+        after: $after
+        quick: $quick
+      ) {
+        totalCount @include(if: $fetchTotalCount)
+        maxCountReached @include(if: $fetchTotalCount)
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        nodes {
+          entities {
+            ...PathGraphEntityFragment
+            userMetadata {
+              isInWatchlist
+              isIgnored
+              note
+            }
+            technologies {
+              id
+              icon
+            }
+            publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
+              nodes {
+                ...NetworkExposureFragment
+              }
+            }
+            otherSubscriptionExposures(first: 10) @include(if: $fetchInternalExposurePaths) {
+              nodes {
+                ...NetworkExposureFragment
+              }
+            }
+            otherVnetExposures(first: 10) @include(if: $fetchInternalExposurePaths) {
+              nodes {
+                ...NetworkExposureFragment
+              }
+            }
+            lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
+              nodes {
+                id
+                pathEntities {
+                  entity {
+                    ...PathGraphEntityFragment
+                  }
+                }
+              }
+            }
+            kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
+              nodes {
+                id
+                path {
+                  ...PathGraphEntityFragment
+                }
+              }
+            }
+          }
+          aggregateCount
+        }
+      }
+    }
+    
+        fragment PathGraphEntityFragment on GraphEntity {
+      id
+      name
+      type
+      properties
+      issueAnalytics: issues(filterBy: {status: [IN_PROGRESS, OPEN]}) @include(if: $fetchIssueAnalytics) {
+        highSeverityCount
+        criticalSeverityCount
+      }
+      typedProperties {
+        ... on GEEndpoint {
+          dynamicScannerScreenshotUrl
+        }
+      }
+    }
+    
+
+        fragment NetworkExposureFragment on NetworkExposure {
+      id
+      portRange
+      sourceIpRange
+      destinationIpRange
+      path {
+        ...PathGraphEntityFragment
+      }
+      applicationEndpoints {
+        ...PathGraphEntityFragment
+      }
+    }
+""")
+
+def get_qry_vars_grp_azure_role_bindings_for_subscriptions(subscription_id):
+    return {
+  "quick": False,
+  "fetchPublicExposurePaths": True,
+  "fetchInternalExposurePaths": False,
+  "fetchIssueAnalytics": False,
+  "fetchLateralMovement": True,
+  "fetchKubernetes": False,
+  "first": 500,
+  "query": {
+    "type": [
+      "GROUP"
+    ],
+    "select": True,
+    "where": {
+      "nativeType": {
+        "EQUALS": [
+          "Group"
+        ]
+      }
+    },
+    "relationships": [
+      {
+        "type": [
+          {
+            "type": "ASSIGNED_TO",
+            "reverse": True
+          }
+        ],
+        "with": {
+          "type": [
+            "ACCESS_ROLE_BINDING"
+          ],
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "APPLIES_TO"
+                }
+              ],
+              "with": {
+                "type": [
+                  "SUBSCRIPTION"
+                ],
+                "where": {
+                  "externalId": {
+                    "EQUALS": [
+                      subscription_id
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "projectId": "*",
+  "fetchTotalCount": False
+}
+
+def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
+    return {
+  "quick": False,
+  "fetchPublicExposurePaths": True,
+  "fetchInternalExposurePaths": False,
+  "fetchIssueAnalytics": False,
+  "fetchLateralMovement": True,
+  "fetchKubernetes": False,
+  "first": 500,
+  "query": {
+    "type": [
+      "GROUP"
+    ],
+    "select": True,
+    "where": {
+      "nativeType": {
+        "EQUALS": [
+          "Group"
+        ]
+      }
+    },
+    "relationships": [
+      {
+        "type": [
+          {
+            "type": "ENTITLES",
+            "reverse": True
+          }
+        ],
+        "with": {
+          "type": [
+            "IAM_BINDING"
+          ],
+          "select": True,
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "ALLOWS_ACCESS_TO"
+                }
+              ],
+              "with": {
+                "type": [
+                  "CLOUD_ORGANIZATION"
+                ],
+                "select": True,
+                "where": {
+                  "externalId": {
+                    "EQUALS": [
+                      management_group_id
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "projectId": "*",
+  "fetchTotalCount": False
+}
+
 def get_qry_project_structure():
     return """
         query GraphSearch(
@@ -576,6 +801,142 @@ def get_qry_vars_azure_project_structure_burners(root_management_group_id, burne
                     ]
                   }
                 },
+                "relationships": [
+                  {
+                    "type": [
+                      {
+                        "type": "CONTAINS"
+                      }
+                    ],
+                    "optional": True,
+                    "with": {
+                      "type": [
+                        "SUBSCRIPTION"
+                      ],
+                      "select": True
+                    }
+                  },
+                  {
+                    "type": [
+                      {
+                        "type": "CONTAINS"
+                      }
+                    ],
+                    "optional": True,
+                    "with": {
+                      "type": [
+                        "CLOUD_ORGANIZATION"
+                      ],
+                      "select": True,
+                      "relationships": [
+                        {
+                          "type": [
+                            {
+                              "type": "CONTAINS"
+                            }
+                          ],
+                          "optional": True,
+                          "with": {
+                            "type": [
+                              "SUBSCRIPTION"
+                            ],
+                            "select": True
+                          }
+                        }
+                      ],
+                    }
+                  }
+                ],
+              }
+            }
+          ],
+        }
+      },
+      {
+        "type": [
+          {
+            "type": "CONTAINS"
+          }
+        ],
+        "optional": True,
+        "with": {
+          "type": [
+            "SUBSCRIPTION"
+          ],
+          "select": True
+        }
+      }
+    ]
+  }, 
+  "projectId": "*",
+  "fetchTotalCount": False
+}
+
+def get_qry_vars_azure_project_structure_no_burners(root_management_group_id):
+  return {
+    "quick": False,
+    "fetchPublicExposurePaths": True,
+    "fetchInternalExposurePaths": False,
+    "fetchIssueAnalytics": False,
+    "fetchLateralMovement": True,
+    "fetchKubernetes": False,
+    "first": 500,
+    "query": {
+    "type": [
+      "CLOUD_ORGANIZATION"
+    ],
+    "select": True,
+    "where": {
+      "externalId": {
+        "EQUALS": [
+          root_management_group_id
+        ]
+      },
+      "cloudPlatform": {
+        "EQUALS": [
+          "Azure"
+        ]
+      }
+    },
+    "relationships": [
+      {
+        "type": [
+          {
+            "type": "CONTAINS"
+          }
+        ],
+        "with": {
+          "type": [
+            "CLOUD_ORGANIZATION"
+          ],
+          "select": True,
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "CONTAINS"
+                }
+              ],
+              "optional": True,
+              "with": {
+                "type": [
+                  "SUBSCRIPTION"
+                ],
+                "select": True
+              }
+            },
+            {
+              "type": [
+                {
+                  "type": "CONTAINS"
+                }
+              ],
+              "optional": True,
+              "with": {
+                "type": [
+                  "CLOUD_ORGANIZATION"
+                ],
+                "select": True,
                 "relationships": [
                   {
                     "type": [
