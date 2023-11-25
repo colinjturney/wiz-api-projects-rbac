@@ -174,69 +174,6 @@ def get_qry_role_bindings():
         }
     """
 
-
-def get_qry_vars_role_bindings(subscription_id, cloud):
-    return {
-        "quick": False,
-        "fetchPublicExposurePaths": True,
-        "fetchInternalExposurePaths": False,
-        "fetchIssueAnalytics": False,
-        "fetchLateralMovement": True,
-        "fetchKubernetes": False,
-        "first": 500,
-        "query": {
-            "type": [
-            "SUBSCRIPTION"
-            ],
-            "select": True,
-            "where": {
-                "cloudPlatform": {
-                    "EQUALS": [
-                    cloud
-                    ]
-                },
-                "subscriptionId": {
-                    "EQUALS": [
-                        subscription_id
-                    ]
-                }
-            },
-            "relationships": [
-            {
-                "type": [
-                {
-                    "type": "APPLIES_TO",
-                    "reverse": True
-                }
-                ],
-                "with": {
-                "type": [
-                    "ACCESS_ROLE_BINDING"
-                ],
-                "select": True,
-                "relationships": [
-                    {
-                    "type": [
-                        {
-                        "type": "ASSIGNED_TO"
-                        }
-                    ],
-                    "with": {
-                        "type": [
-                        "USER_ACCOUNT"
-                        ],
-                        "select": True
-                    }
-                    }
-                ]
-                }
-            }
-            ]
-        },
-        "projectId": "*",
-        "fetchTotalCount": False
-    }
-
 def get_qry_grp_role_bindings():
     return ("""
     query GraphSearch($query: GraphEntityQueryInput, $controlId: ID, $projectId: String!, $first: Int, $after: String, $fetchTotalCount: Boolean!, $quick: Boolean = true, $fetchPublicExposurePaths: Boolean = false, $fetchInternalExposurePaths: Boolean = false, $fetchIssueAnalytics: Boolean = false, $fetchLateralMovement: Boolean = false, $fetchKubernetes: Boolean = false) {
@@ -344,12 +281,11 @@ def get_qry_vars_grp_azure_role_bindings_for_subscriptions(subscription_id):
   "fetchIssueAnalytics": False,
   "fetchLateralMovement": True,
   "fetchKubernetes": False,
-  "first": 500,
+  "first": 50,
   "query": {
     "type": [
       "GROUP"
     ],
-    "select": True,
     "where": {
       "nativeType": {
         "EQUALS": [
@@ -357,30 +293,36 @@ def get_qry_vars_grp_azure_role_bindings_for_subscriptions(subscription_id):
         ]
       }
     },
+    "select": True,
     "relationships": [
       {
         "type": [
           {
-            "type": "ASSIGNED_TO",
+            "type": "ENTITLES",
             "reverse": True
           }
         ],
         "with": {
           "type": [
-            "ACCESS_ROLE_BINDING"
+            "IAM_BINDING"
           ],
           "relationships": [
             {
               "type": [
                 {
-                  "type": "APPLIES_TO"
+                  "type": "ALLOWS_ACCESS_TO"
                 }
               ],
               "with": {
                 "type": [
-                  "SUBSCRIPTION"
+                  "SUBSCRIPTION",
                 ],
                 "where": {
+                  "nativeType": {
+                    "EQUALS": [
+                      "Microsoft.Subscription",
+                    ]
+                  },
                   "externalId": {
                     "EQUALS": [
                       subscription_id
@@ -399,19 +341,18 @@ def get_qry_vars_grp_azure_role_bindings_for_subscriptions(subscription_id):
 }
 
 def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
-    return {
+     return {
   "quick": False,
   "fetchPublicExposurePaths": True,
   "fetchInternalExposurePaths": False,
   "fetchIssueAnalytics": False,
   "fetchLateralMovement": True,
   "fetchKubernetes": False,
-  "first": 500,
+  "first": 50,
   "query": {
     "type": [
       "GROUP"
     ],
-    "select": True,
     "where": {
       "nativeType": {
         "EQUALS": [
@@ -419,6 +360,7 @@ def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
         ]
       }
     },
+    "select": True,
     "relationships": [
       {
         "type": [
@@ -431,7 +373,6 @@ def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
           "type": [
             "IAM_BINDING"
           ],
-          "select": True,
           "relationships": [
             {
               "type": [
@@ -441,10 +382,14 @@ def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
               ],
               "with": {
                 "type": [
-                  "CLOUD_ORGANIZATION"
+                  "CLOUD_ORGANIZATION",
                 ],
-                "select": True,
                 "where": {
+                  "nativeType": {
+                    "EQUALS": [
+                      "Microsoft.Management/managementGroups",
+                    ]
+                  },
                   "externalId": {
                     "EQUALS": [
                       management_group_id
@@ -574,14 +519,14 @@ def get_qry_project_structure():
 
 def get_qry_vars_azure_project_structure_excl_burners(root_management_group_id, burner_mg_id):
   return {
-    "quick": False,
-    "fetchPublicExposurePaths": True,
-    "fetchInternalExposurePaths": False,
-    "fetchIssueAnalytics": False,
-    "fetchLateralMovement": True,
-    "fetchKubernetes": False,
-    "first": 500,
-    "query": {
+  "quick": False,
+  "fetchPublicExposurePaths": True,
+  "fetchInternalExposurePaths": False,
+  "fetchIssueAnalytics": False,
+  "fetchLateralMovement": True,
+  "fetchKubernetes": False,
+  "first": 500,
+  "query": {
     "type": [
       "CLOUD_ORGANIZATION"
     ],
@@ -677,6 +622,117 @@ def get_qry_vars_azure_project_structure_excl_burners(root_management_group_id, 
                               "SUBSCRIPTION"
                             ],
                             "select": True
+                          }
+                        },
+                        {
+                          "type": [
+                            {
+                              "type": "CONTAINS"
+                            }
+                          ],
+                          "optional": True,
+                          "with": {
+                            "type": [
+                              "CLOUD_ORGANIZATION"
+                            ],
+                            "select": True,
+                            "relationships": [
+                              {
+                                "type": [
+                                  {
+                                    "type": "CONTAINS"
+                                  }
+                                ],
+                                "optional": True,
+                                "with": {
+                                  "type": [
+                                    "CLOUD_ORGANIZATION"
+                                  ],
+                                  "select": True,
+                                  "relationships": [
+                                    {
+                                      "type": [
+                                        {
+                                          "type": "CONTAINS"
+                                        }
+                                      ],
+                                      "optional": True,
+                                      "with": {
+                                        "type": [
+                                          "CLOUD_ORGANIZATION"
+                                        ],
+                                        "select": True,
+                                        "relationships": [
+                                          {
+                                            "type": [
+                                              {
+                                                "type": "CONTAINS"
+                                              }
+                                            ],
+                                            "with": {
+                                              "type": [
+                                                "SUBSCRIPTION"
+                                              ],
+                                              "select": True
+                                            },
+                                            "optional": True
+                                          }
+                                        ],
+                                        "where": {
+                                          "externalId": {
+                                            "NOT_EQUALS": [
+                                              burner_mg_id
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": [
+                                        {
+                                          "type": "CONTAINS"
+                                        }
+                                      ],
+                                      "with": {
+                                        "type": [
+                                          "SUBSCRIPTION"
+                                        ],
+                                        "select": True
+                                      },
+                                      "optional": True
+                                    }
+                                  ],
+                                  "where": {
+                                    "externalId": {
+                                      "NOT_EQUALS": [
+                                        burner_mg_id
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": [
+                                  {
+                                    "type": "CONTAINS"
+                                  }
+                                ],
+                                "optional": True,
+                                "with": {
+                                  "type": [
+                                    "SUBSCRIPTION"
+                                  ],
+                                  "select": True
+                                }
+                              }
+                            ],
+                            "where": {
+                              "externalId": {
+                                "NOT_EQUALS": [
+                                  burner_mg_id
+                                ]
+                              }
+                            }
                           }
                         }
                       ],
@@ -724,7 +780,7 @@ def get_qry_vars_azure_project_structure_excl_burners(root_management_group_id, 
         }
       }
     ]
-  }, 
+  },
   "projectId": "*",
   "fetchTotalCount": False
 }
@@ -739,149 +795,239 @@ def get_qry_vars_azure_project_structure_burners(root_management_group_id, burne
     "fetchKubernetes": False,
     "first": 500,
     "query": {
-    "type": [
-      "CLOUD_ORGANIZATION"
-    ],
-    "select": True,
-    "where": {
-      "externalId": {
-        "EQUALS": [
-          root_management_group_id
-        ]
+      "type": [
+        "CLOUD_ORGANIZATION"
+      ],
+      "select": True,
+      "where": {
+        "externalId": {
+          "EQUALS": [
+            root_management_group_id
+          ]
+        },
+        "cloudPlatform": {
+          "EQUALS": [
+            "Azure"
+          ]
+        }
       },
-      "cloudPlatform": {
-        "EQUALS": [
-          "Azure"
-        ]
-      }
-    },
-    "relationships": [
-      {
-        "type": [
-          {
-            "type": "CONTAINS"
-          }
-        ],
-        "with": {
+      "relationships": [
+        {
           "type": [
-            "CLOUD_ORGANIZATION"
-          ],
-          "select": True,
-          "relationships": [
             {
-              "type": [
-                {
-                  "type": "CONTAINS"
-                }
-              ],
-              "optional": True,
-              "with": {
-                "type": [
-                  "SUBSCRIPTION"
-                ],
-                "select": True
-              }
-            },
-            {
-              "type": [
-                {
-                  "type": "CONTAINS"
-                }
-              ],
-              "optional": True,
-              "with": {
-                "type": [
-                  "CLOUD_ORGANIZATION"
-                ],
-                "select": True,
-                "where": {
-                  "externalId": {
-                    "EQUALS": [
-                      burner_mg_id
-                    ]
-                  }
-                },
-                "relationships": [
-                  {
-                    "type": [
-                      {
-                        "type": "CONTAINS"
-                      }
-                    ],
-                    "optional": True,
-                    "with": {
-                      "type": [
-                        "SUBSCRIPTION"
-                      ],
-                      "select": True
-                    }
-                  },
-                  {
-                    "type": [
-                      {
-                        "type": "CONTAINS"
-                      }
-                    ],
-                    "optional": True,
-                    "with": {
-                      "type": [
-                        "CLOUD_ORGANIZATION"
-                      ],
-                      "select": True,
-                      "relationships": [
-                        {
-                          "type": [
-                            {
-                              "type": "CONTAINS"
-                            }
-                          ],
-                          "optional": True,
-                          "with": {
-                            "type": [
-                              "SUBSCRIPTION"
-                            ],
-                            "select": True
-                          }
-                        }
-                      ],
-                    }
-                  }
-                ],
-              }
+              "type": "CONTAINS"
             }
           ],
-        }
-      },
-      {
-        "type": [
-          {
-            "type": "CONTAINS"
+          "with": {
+            "type": [
+              "CLOUD_ORGANIZATION"
+            ],
+            "select": True,
+            "relationships": [
+              {
+                "type": [
+                  {
+                    "type": "CONTAINS"
+                  }
+                ],
+                "optional": True,
+                "with": {
+                  "type": [
+                    "SUBSCRIPTION"
+                  ],
+                  "select": True
+                }
+              },
+              {
+                "type": [
+                  {
+                    "type": "CONTAINS"
+                  }
+                ],
+                "optional": True,
+                "with": {
+                  "type": [
+                    "CLOUD_ORGANIZATION"
+                  ],
+                  "select": True,
+                  "relationships": [
+                    {
+                      "type": [
+                        {
+                          "type": "CONTAINS"
+                        }
+                      ],
+                      "optional": True,
+                      "with": {
+                        "type": [
+                          "SUBSCRIPTION"
+                        ],
+                        "select": True
+                      }
+                    },
+                    {
+                      "type": [
+                        {
+                          "type": "CONTAINS"
+                        }
+                      ],
+                      "optional": True,
+                      "with": {
+                        "type": [
+                          "CLOUD_ORGANIZATION"
+                        ],
+                        "select": True,
+                        "relationships": [
+                          {
+                            "type": [
+                              {
+                                "type": "CONTAINS"
+                              }
+                            ],
+                            "optional": True,
+                            "with": {
+                              "type": [
+                                "SUBSCRIPTION"
+                              ],
+                              "select": True
+                            }
+                          },
+                          {
+                            "type": [
+                              {
+                                "type": "CONTAINS"
+                              }
+                            ],
+                            "optional": True,
+                            "with": {
+                              "type": [
+                                "CLOUD_ORGANIZATION"
+                              ],
+                              "select": True,
+                              "relationships": [
+                                {
+                                  "type": [
+                                    {
+                                      "type": "CONTAINS"
+                                    }
+                                  ],
+                                  "optional": True,
+                                  "with": {
+                                    "type": [
+                                      "CLOUD_ORGANIZATION"
+                                    ],
+                                    "select": True,
+                                    "relationships": [
+                                      {
+                                        "type": [
+                                          {
+                                            "type": "CONTAINS"
+                                          }
+                                        ],
+                                        "optional": True,
+                                        "with": {
+                                          "type": [
+                                            "CLOUD_ORGANIZATION"
+                                          ],
+                                          "select": True,
+                                          "relationships": [
+                                            {
+                                              "type": [
+                                                {
+                                                  "type": "CONTAINS"
+                                                }
+                                              ],
+                                              "with": {
+                                                "type": [
+                                                  "SUBSCRIPTION"
+                                                ],
+                                                "select": True
+                                              },
+                                              "optional": True
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": [
+                                          {
+                                            "type": "CONTAINS"
+                                          }
+                                        ],
+                                        "with": {
+                                          "type": [
+                                            "SUBSCRIPTION"
+                                          ],
+                                          "select": True
+                                        },
+                                        "optional": True
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": [
+                                    {
+                                      "type": "CONTAINS"
+                                    }
+                                  ],
+                                  "optional": True,
+                                  "with": {
+                                    "type": [
+                                      "SUBSCRIPTION"
+                                    ],
+                                    "select": True
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "where": {
+                    "externalId": {
+                      "EQUALS": [
+                        burner_mg_id
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
           }
-        ],
-        "optional": True,
-        "with": {
+        },
+        {
           "type": [
-            "SUBSCRIPTION"
+            {
+              "type": "CONTAINS"
+            }
           ],
-          "select": True
+          "optional": True,
+          "with": {
+            "type": [
+              "SUBSCRIPTION"
+            ],
+            "select": True
+          }
         }
-      }
-    ]
-  }, 
-  "projectId": "*",
-  "fetchTotalCount": False
+      ]
+    },
+    "projectId": "*",
+    "fetchTotalCount": False
 }
 
 def get_qry_vars_azure_project_structure_no_burners(root_management_group_id):
   return {
-    "quick": False,
-    "fetchPublicExposurePaths": True,
-    "fetchInternalExposurePaths": False,
-    "fetchIssueAnalytics": False,
-    "fetchLateralMovement": True,
-    "fetchKubernetes": False,
-    "first": 500,
-    "query": {
+  "quick": False,
+  "fetchPublicExposurePaths": True,
+  "fetchInternalExposurePaths": False,
+  "fetchIssueAnalytics": False,
+  "fetchLateralMovement": True,
+  "fetchKubernetes": False,
+  "first": 500,
+  "query": {
     "type": [
       "CLOUD_ORGANIZATION"
     ],
@@ -978,14 +1124,104 @@ def get_qry_vars_azure_project_structure_no_burners(root_management_group_id):
                             ],
                             "select": True
                           }
+                        },
+                        {
+                          "type": [
+                            {
+                              "type": "CONTAINS"
+                            }
+                          ],
+                          "optional": True,
+                          "with": {
+                            "type": [
+                              "CLOUD_ORGANIZATION"
+                            ],
+                            "select": True,
+                            "relationships": [
+                              {
+                                "type": [
+                                  {
+                                    "type": "CONTAINS"
+                                  }
+                                ],
+                                "optional": True,
+                                "with": {
+                                  "type": [
+                                    "CLOUD_ORGANIZATION"
+                                  ],
+                                  "select": True,
+                                  "relationships": [
+                                    {
+                                      "type": [
+                                        {
+                                          "type": "CONTAINS"
+                                        }
+                                      ],
+                                      "optional": True,
+                                      "with": {
+                                        "type": [
+                                          "CLOUD_ORGANIZATION"
+                                        ],
+                                        "select": True,
+                                        "relationships": [
+                                          {
+                                            "type": [
+                                              {
+                                                "type": "CONTAINS"
+                                              }
+                                            ],
+                                            "with": {
+                                              "type": [
+                                                "SUBSCRIPTION"
+                                              ],
+                                              "select": True
+                                            },
+                                            "optional": True
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": [
+                                        {
+                                          "type": "CONTAINS"
+                                        }
+                                      ],
+                                      "with": {
+                                        "type": [
+                                          "SUBSCRIPTION"
+                                        ],
+                                        "select": True
+                                      },
+                                      "optional": True
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": [
+                                  {
+                                    "type": "CONTAINS"
+                                  }
+                                ],
+                                "optional": True,
+                                "with": {
+                                  "type": [
+                                    "SUBSCRIPTION"
+                                  ],
+                                  "select": True
+                                }
+                              }
+                            ]
+                          }
                         }
-                      ],
+                      ]
                     }
                   }
-                ],
+                ]
               }
             }
-          ],
+          ]
         }
       },
       {
@@ -1003,7 +1239,7 @@ def get_qry_vars_azure_project_structure_no_burners(root_management_group_id):
         }
       }
     ]
-  }, 
+  },
   "projectId": "*",
   "fetchTotalCount": False
 }
@@ -1025,7 +1261,7 @@ def get_qry_vars_gcp_project_structure_excl_burners(root_management_group_id, bu
     "where": {
       "externalId": {
         "EQUALS": [
-          "1024966451393"
+          root_management_group_id
         ]
       }
     },
