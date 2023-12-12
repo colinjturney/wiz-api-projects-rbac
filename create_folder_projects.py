@@ -103,70 +103,68 @@ def get_group_role_bindings(id, scope_type, project_id, cloud):
     query       = ctwiz.get_qry_grp_role_bindings()
     variables   = ""
 
-    if cloud == "AWS":
-        #variables   = ctwiz.get_qry_vars_role_bindings(subscription_id, "AWS")
-        logging.info("AWS not yet supported for group role bindings...")
+    if cloud == "AWS" and scope_type == "subscription":
+        variables   = ctwiz.get_qry_vars_grp_aws_role_bindings_for_subscriptions(id)
+    elif cloud == "AWS" and scope_type == "management_group":
+        logging.info("No role bindings for AWS OUs")
     elif cloud == "Azure" and scope_type == "subscription":
         variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
     elif cloud == "Azure" and scope_type == "management_group":
         variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
-    elif cloud == "GCP":
-        #variables   = ctwiz.get_qry_vars_role_bindings(subscription_id, "Azure")
+    elif cloud == "GCP" and scope_type == "subscription":
+        #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
         logging.info("GCP not yet supported for group role bindings...")
+        exit(1)
+    elif cloud == "GCP" and scope_type == "management_group":
+        #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
+        logging.info("GCP not yet supported for group role bindings...")
+        exit(1)
 
     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
-    # Pagination
-    page_info = results["data"]["graphSearch"]["pageInfo"]
+    try:
+        # Pagination
+        page_info = results["data"]["graphSearch"]["pageInfo"]
 
-    while(page_info["hasNextPage"]):
-        logging.info("Paginating on get_role_bindings")
-        variables["after"] = page_info["endCursor"]
-        this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-        results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
-        page_info = this_results["data"]["graphSearch"]["pageInfo"]
+        while(page_info["hasNextPage"]):
+            logging.info("Paginating on get_role_bindings")
+            variables["after"] = page_info["endCursor"]
+            this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+            results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
+            page_info = this_results["data"]["graphSearch"]["pageInfo"]
 
-    # Adding to dict to ensure duplicate results won't be added.
-    group_project_bindings = {}
+        # Adding to dict to ensure duplicate results won't be added.
+        group_project_bindings = {}
 
-    for result in results["data"]["graphSearch"]["nodes"]:
+        for result in results["data"]["graphSearch"]["nodes"]:
 
-        entities = result["entities"]
+            entities = result["entities"]
 
-        group_name  = entities[0]["properties"]["name"]
-        group_id    = entities[0]["properties"]["externalId"]
+            group_name  = entities[0]["properties"]["name"]
+            group_id    = entities[0]["properties"]["externalId"]
 
-        try:
-            if groups[group_id] != None:
-                groups[group_id]["scoped_projects"].append(project_id)
-        except KeyError:
-            new_group = {}
-            new_group["group_name"] = group_name
-            new_group["group_id"]   = group_id
-            new_group["scoped_projects"] = [project_id]
-            new_group["scope_type"] = scope_type
-            groups[group_id] = new_group
+            try:
+                if groups[group_id] != None:
+                    groups[group_id]["scoped_projects"].append(project_id)
+            except KeyError:
+                new_group = {}
+                new_group["group_name"] = group_name
+                new_group["group_id"]   = group_id
+                new_group["scoped_projects"] = [project_id]
+                new_group["scope_type"] = scope_type
+                groups[group_id] = new_group
 
-        if entities[0] != None and cloud == "Azure":
-            group_project_bindings[group_id] = {
-                "group_name" : group_name,
-                "group_id"  : group_id
-            }
+            if entities[0] != None:
+                group_project_bindings[group_id] = {
+                    "group_name" : group_name,
+                    "group_id"  : group_id
+                }
 
-        if entities[0] != None and cloud == "GCP":
-            group_project_bindings[group_id] = {
-                "group_name" : group_name,
-                "group_id"  : group_id
-            }
+        return group_project_bindings
 
-        if entities[0] != None and cloud == "AWS":
-            group_project_bindings[group_id] = {
-                "group_name" : group_name,
-                "group_id"  : group_id
-            }
-
-    return group_project_bindings
-
+    except KeyError:
+        logging.info("No role bindings for AWS OUs")
+        return {}
 
 def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg_burner_list):
 
@@ -179,7 +177,7 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
     elif burner_mode    == False and cloud == "Azure" and len(mg_burner_list) != 0:
          variables  = ctwiz.get_qry_vars_azure_project_structure_excl_burners(root_mg_id, mg_burner_list[0])  
     elif burner_mode    == False and cloud == "Azure" and len(mg_burner_list) == 0:
-         variables  = ctwiz.get_qry_vars_azure_project_structure_no_burners(root_mg_id)
+         variables  = ctwiz.get_qry_vars_project_structure_no_burners(root_mg_id, cloud)
     elif burner_mode    == True and cloud == "GCP":
         variables   = ctwiz.get_qry_vars_gcp_project_structure_burners(root_mg_id, mg_burner_list[0])
     elif burner_mode    == False and cloud == "GCP":
@@ -188,10 +186,9 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
         logging.info("No burner mode for AWS")
         return None
     elif burner_mode    == False and cloud == "AWS":
-        variables   = ctwiz.get_qry_vars_aws_project_structure(root_mg_id)  
+        variables  = ctwiz.get_qry_vars_project_structure_no_burners(root_mg_id, cloud)
     
     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-    print(results)
 
     # Pagination
     page_info = results["data"]["graphSearch"]["pageInfo"]
@@ -218,6 +215,9 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
 
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
+
+        # if i == 51:
+        #     break
 
         logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
         
@@ -431,7 +431,7 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
 # mock_create_project(project_path)
 # Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
 
-def mock_create_project(subscription_id, project_name, full_path, is_folder = False, parent_project_id = None, burner_mode = False):
+def mock_create_project(external_id, project_name, full_path, is_folder = False, parent_project_id = None, burner_mode = False):
 
     filename = ""
 
@@ -445,12 +445,11 @@ def mock_create_project(subscription_id, project_name, full_path, is_folder = Fa
     project_id = project_name + "-0000-0000"
 
     if parent_project_id == None:
-        f.write("\"" + project_name + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "\n")
+        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "\n")
     else:
-        f.write("\"" + project_name + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")
+        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")
 
     return project_id
-
 
 def write_saml_role_mappings():
     f = open("saml_role_mappings.csv","a")
@@ -463,10 +462,10 @@ def initialise_mock_files():
     f.write("Group ID, Group Name, Role, Projects, Scoped Project Count\n")
  
     g = open("mock_project_output.csv","w")
-    g.write("Project Name,Project Path,Is Folder,Project ID, Parent Project ID\n")
+    g.write("Project Name,External ID, Project Path,Is Folder,Project ID, Parent Project ID\n")
 
     g = open("mock_project_output_burners.csv","w")
-    g.write("Project Name,Project Path,Is Folder,Project ID, Parent Project ID\n")
+    g.write("Project Name,External ID, Project Path,Is Folder,Project ID, Parent Project ID\n")
 
 
 def loop_model_project_structure(burner_mode, cloud, root_mg_list):
@@ -493,9 +492,9 @@ def main():
 
     logging.info("Modelling project structure...")
     build_root_structure()
-    #loop_model_project_structure(False, "Azure", azure_root_management_group_list)
+    loop_model_project_structure(False, "Azure", azure_root_management_group_list)
     loop_model_project_structure(False, "GCP", gcp_root_org_list)
-    #loop_model_project_structure(False, "AWS", aws_root_org_list)
+    loop_model_project_structure(False, "AWS", aws_root_org_list)
 
     # Might just skip burners all together. They can always be added manually later on.
     #logging.info("Modelling project structure (burners)...")

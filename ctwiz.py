@@ -63,117 +63,6 @@ def request_wiz_api_token(client_id, client_secret):
 
     return TOKEN
 
-def get_qry_role_bindings():
-
-    return """
-        query GraphSearch(
-            $query: GraphEntityQueryInput
-            $controlId: ID
-            $projectId: String!
-            $first: Int
-            $after: String
-            $fetchTotalCount: Boolean!
-            $quick: Boolean = true
-            $fetchPublicExposurePaths: Boolean = false
-            $fetchInternalExposurePaths: Boolean = false
-            $fetchIssueAnalytics: Boolean = false
-            $fetchLateralMovement: Boolean = false
-            $fetchKubernetes: Boolean = false
-        ) {
-            graphSearch(
-            query: $query
-            controlId: $controlId
-            projectId: $projectId
-            first: $first
-            after: $after
-            quick: $quick
-            ) {
-            totalCount @include(if: $fetchTotalCount)
-            maxCountReached @include(if: $fetchTotalCount)
-            pageInfo {
-                endCursor
-                hasNextPage
-            }
-            nodes {
-                entities {
-                ...PathGraphEntityFragment
-                userMetadata {
-                    isInWatchlist
-                    isIgnored
-                    note
-                }
-                technologies {
-                    id
-                    icon
-                }
-                publicExposures(first: 10) @include(if: $fetchPublicExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                otherSubscriptionExposures(first: 10)
-                    @include(if: $fetchInternalExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                otherVnetExposures(first: 10)
-                    @include(if: $fetchInternalExposurePaths) {
-                    nodes {
-                    ...NetworkExposureFragment
-                    }
-                }
-                lateralMovementPaths(first: 10) @include(if: $fetchLateralMovement) {
-                    nodes {
-                    id
-                    pathEntities {
-                        entity {
-                        ...PathGraphEntityFragment
-                        }
-                    }
-                    }
-                }
-                kubernetesPaths(first: 10) @include(if: $fetchKubernetes) {
-                    nodes {
-                    id
-                    path {
-                        ...PathGraphEntityFragment
-                    }
-                    }
-                }
-                }
-                aggregateCount
-            }
-            }
-        }
-    
-        fragment PathGraphEntityFragment on GraphEntity {
-            id
-            name
-            type
-            properties
-            issueAnalytics: issues(filterBy: { status: [IN_PROGRESS, OPEN] })
-            @include(if: $fetchIssueAnalytics) {
-            highSeverityCount
-            criticalSeverityCount
-            }
-        }
-
-    
-        fragment NetworkExposureFragment on NetworkExposure {
-            id
-            portRange
-            sourceIpRange
-            destinationIpRange
-            path {
-            ...PathGraphEntityFragment
-            }
-            applicationEndpoints {
-            ...PathGraphEntityFragment
-            }
-        }
-    """
-
 def get_qry_grp_role_bindings():
     return ("""
     query GraphSearch($query: GraphEntityQueryInput, $controlId: ID, $projectId: String!, $first: Int, $after: String, $fetchTotalCount: Boolean!, $quick: Boolean = true, $fetchPublicExposurePaths: Boolean = false, $fetchInternalExposurePaths: Boolean = false, $fetchIssueAnalytics: Boolean = false, $fetchLateralMovement: Boolean = false, $fetchKubernetes: Boolean = false) {
@@ -407,6 +296,94 @@ def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
   "fetchTotalCount": False
 }
 
+def get_qry_vars_grp_aws_role_bindings_for_subscriptions(subscription_id):
+  return {
+  "quick": False,
+  "fetchPublicExposurePaths": True,
+  "fetchInternalExposurePaths": False,
+  "fetchIssueAnalytics": False,
+  "fetchLateralMovement": True,
+  "fetchKubernetes": False,
+  "first": 500,
+  "query": {
+    "type": [
+      "GROUP"
+    ],
+    "select": True,
+    "relationships": [
+      {
+        "type": [
+          {
+            "type": "ENTITLES",
+            "reverse": True
+          }
+        ],
+        "with": {
+          "type": [
+            "IAM_BINDING"
+          ],
+          "where": {
+            "accessTypes": {
+              "EQUALS": [
+                "Impersonate"
+              ]
+            },
+            "name": {
+              "EQUALS": [
+                "AWS sts:AssumeRoleWithSAML permission"
+              ]
+            }
+          },
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "ALLOWS_ACCESS_TO"
+                }
+              ],
+              "with": {
+                "type": [
+                  "PRINCIPAL"
+                ],
+                "relationships": [
+                  {
+                    "type": [
+                      {
+                        "type": "CONTAINS",
+                        "reverse": True
+                      }
+                    ],
+                    "with": {
+                      "type": [
+                        "SUBSCRIPTION"
+                      ],
+                      "where": {
+                        "externalId": {
+                          "EQUALS": [
+                            subscription_id
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "where": {
+      "nativeType": {
+        "EQUALS": [
+          "ssoGroup"
+        ]
+      }
+    }
+  },
+  "projectId": "*",
+  "fetchTotalCount": False
+}
 def get_qry_project_structure():
     return """
         query GraphSearch(
@@ -1018,7 +995,7 @@ def get_qry_vars_azure_project_structure_burners(root_management_group_id, burne
     "fetchTotalCount": False
 }
 
-def get_qry_vars_azure_project_structure_no_burners(root_management_group_id):
+def get_qry_vars_project_structure_no_burners(root_management_group_id, cloud):
   return {
   "quick": False,
   "fetchPublicExposurePaths": True,
@@ -1040,7 +1017,7 @@ def get_qry_vars_azure_project_structure_no_burners(root_management_group_id):
       },
       "cloudPlatform": {
         "EQUALS": [
-          "Azure"
+          cloud
         ]
       }
     },
@@ -1662,25 +1639,66 @@ def get_qry_create_project():
         }
     """)
 
-def get_qry_vars_create_project(project_name, is_folder, parent_folder_project_id):
+def get_qry_vars_create_folder_project(project_name, parent_folder_project_id):
     return {
         "input": {
             "name": project_name,
             "identifiers": [],
-            "isFolder": is_folder,
+            "isFolder": True,
             "description": "",
             "businessUnit": "",
             "riskProfile": {
-            "businessImpact": "MBI",
-            "hasExposedAPI": "UNKNOWN",
-            "hasAuthentication": "UNKNOWN",
-            "isCustomerFacing": "UNKNOWN",
-            "isInternetFacing": "UNKNOWN",
-            "isRegulated": "UNKNOWN",
-            "sensitiveDataTypes": [],
-            "storesData": "UNKNOWN",
-            "regulatoryStandards": []
+              "businessImpact": "MBI",
+              "hasExposedAPI": "UNKNOWN",
+              "hasAuthentication": "UNKNOWN",
+              "isCustomerFacing": "UNKNOWN",
+              "isInternetFacing": "UNKNOWN",
+              "isRegulated": "UNKNOWN",
+              "sensitiveDataTypes": [],
+              "storesData": "UNKNOWN",
+              "regulatoryStandards": []
             },
             "parentProjectId": parent_folder_project_id
         }
     }
+
+def get_qry_vars_create_project_subscription(project_name, subscription_id, parent_folder_project_id):
+    return {
+        "input": {
+            "name": project_name,
+            "identifiers": [],
+            "isFolder": False,
+            "cloudAccountLinks": [
+              {
+                "cloudAccount": subscription_id,
+                "environment": "PRODUCTION",
+                "shared": False
+              }
+            ],
+            "description": "",
+            "businessUnit": "",
+            "riskProfile": {
+              "businessImpact": "MBI",
+              "hasExposedAPI": "UNKNOWN",
+              "hasAuthentication": "UNKNOWN",
+              "isCustomerFacing": "UNKNOWN",
+              "isInternetFacing": "UNKNOWN",
+              "isRegulated": "UNKNOWN",
+              "sensitiveDataTypes": [],
+              "storesData": "UNKNOWN",
+              "regulatoryStandards": []
+            },
+            "parentProjectId": parent_folder_project_id
+        }
+    }
+
+
+# {
+#   "data": {
+#     "createProject": {
+#       "project": {
+#         "id": "7d7522ae-e5ea-5695-a631-1cc28a358abf"
+#       }
+#     }
+#   }
+# }
