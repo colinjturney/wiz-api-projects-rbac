@@ -67,8 +67,9 @@ export GCP_ROOT_WIZ_PROJECT_NAME="[GCP_ROOT_WIZ_PROJECT_NAME]"
 export GCP_ROOT_ORG_LIST="[GCP_ROOT_ORG_LIST]"
 export AWS_ROOT_WIZ_PROJECT_NAME="[AWS_ROOT_WIZ_PROJECT_NAME]"
 export AWS_ROOT_ORG_LIST="[AWS_ROOT_ORG_LIST]"
+export WRITE_MODE="[WRITE_MODE]"
 
-python create_folder_projects.py "${CLIENT_ID}" "${CLIENT_SECRET}" "${AZURE_ROOT_WIZ_PROJECT_NAME}" "${AZURE_ROOT_MG_LIST}" "${DEFAULT_SAML_PROVIDER}" "${DEFAULT_USER_ROLE}" "${LOGGING_LEVEL}" "${WIZ_DATACENTER}" "${GCP_ROOT_WIZ_PROJECT_NAME}" "${GCP_ROOT_ORG_LIST}" "${AWS_ROOT_WIZ_PROJECT_NAME}" "${AWS_ROOT_ORG_LIST}"
+python create_folder_projects.py "${CLIENT_ID}" "${CLIENT_SECRET}" "${AZURE_ROOT_WIZ_PROJECT_NAME}" "${AZURE_ROOT_MG_LIST}" "${DEFAULT_SAML_PROVIDER}" "${DEFAULT_USER_ROLE}" "${LOGGING_LEVEL}" "${WIZ_DATACENTER}" "${GCP_ROOT_WIZ_PROJECT_NAME}" "${GCP_ROOT_ORG_LIST}" "${AWS_ROOT_WIZ_PROJECT_NAME}" "${AWS_ROOT_ORG_LIST}" "${WRITE_MODE}"
 
 ```
 
@@ -86,3 +87,4 @@ Where the [values] above align to as follows:
 * GCP_ROOT_ORG_LIST: A JSON representation of all root organizations that should be included from GCP. For each root organization this should include a "friendly name", the provider ID of the management group and a list of "burner" management groups if applicable. Example value: `"[{\"friendly_name\": \"GCP Org A\", \"group_id\": \"01234567890\", \"burner_list\": [\"01234567890\"]},{\"friendly_name\": \"GCP Org B\", \"group_id\": \"01234567890\", \"burner_list\": []}]"`
 * AWS_ROOT_WIZ_PROJECT_NAME: The name of the root Wiz project that will be used to group together all GCP-related folder projects and projects.
 * AWS_ROOT_ORG_LIST: A JSON representation of all root organizations that should be included from AWS. For each root organization this should include a "friendly name", the provider ID of the management group and a list of "burner" management groups if applicable. Example value: `"[{\"friendly_name\": \"AWS Org A\", \"group_id\": \"r-abcd\", \"burner_list\":[]},{\"friendly_name\": \"AWS Org B\", \"group_id\": \"r-abcd\", \"burner_list\":[]},{\"friendly_name\": \"AWS Org C\", \"group_id\": \"r-abcd\", \"burner_list\":[]}]"`
+* WRITE_MODE: `True` or `False`, depending on whether you want the script to attempt to actually create projects on Wiz.
