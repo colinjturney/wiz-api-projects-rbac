@@ -20,6 +20,7 @@ ARG_GCP_ROOT_WIZ_PROJECT_NAME   = 9
 ARG_GCP_ROOT_ORG_LIST           = 10
 ARG_AWS_ROOT_WIZ_PROJECT_NAME   = 11
 ARG_AWS_ROOT_ORG_LIST           = 12
+ARG_WRITE_MODE                  = 13
 
 
 # Pass in runtime variables
@@ -35,6 +36,14 @@ gcp_root_wiz_project_name           = sys.argv[ARG_GCP_ROOT_WIZ_PROJECT_NAME]
 gcp_root_org_list                   = sys.argv[ARG_GCP_ROOT_ORG_LIST]
 aws_root_wiz_project_name           = sys.argv[ARG_AWS_ROOT_WIZ_PROJECT_NAME]
 aws_root_org_list                   = sys.argv[ARG_AWS_ROOT_ORG_LIST]
+enable_write_mode                   = sys.argv[ARG_WRITE_MODE]
+
+enable_write_mode = str(enable_write_mode).lower()
+
+if enable_write_mode == "true":
+    enable_write_mode = True
+elif enable_write_mode == "false":
+    enable_write_mode = False
 
 # Entity Indexes
 
@@ -497,15 +506,16 @@ def write_to_project_file(project_id, external_id, project_name, full_path, is_f
 # Writes to the Wiz API to create this project in Wiz. Returns back the created project's project_id
 def create_project(external_id, project_name, full_path, is_folder, parent_project_id, burner_mode):
 
-    query       = ctwiz.get_qry_project_structure()
+    query       = ctwiz.get_qry_create_project()
     variables   = {}
+    results     = {}
 
     if burner_mode == False:
 
         if is_folder == True:
 
             if parent_project_id == None:
-                variables = ctwiz.get_qry_vars_create_folder_project(project_name, "")
+                variables = ctwiz.get_qry_vars_create_folder_project(project_name, None)
 
             elif parent_project_id != None:
                 variables = ctwiz.get_qry_vars_create_folder_project(project_name, parent_project_id)
@@ -513,14 +523,26 @@ def create_project(external_id, project_name, full_path, is_folder, parent_proje
         elif is_folder == False:
             variables = ctwiz.get_qry_vars_create_project_subscription(project_name, external_id, parent_project_id)    
 
-        #results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-        #project_id = results["data"]["createProject"]["project"]["id"]
-
-        #Mocking project_id to mimick read-only mode
-        project_id = project_name + "-0000-0000"
 
         path_depth = len(full_path.split("/"))
-
+        
+        if enable_write_mode == True:
+            exit(1)
+            if path_depth <= 3 and is_folder == False:
+                print("would create project with path: " + full_path)
+                results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+                project_id = results["data"]["createProject"]["project"]["id"]
+                print("Created new project: " + str(results))
+            elif path_depth <= 2 and is_folder == True:
+                print("would create folder project with path: " + full_path)
+                results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+                print("Created new folder_project: " + str(results))
+                project_id = results["data"]["createProject"]["project"]["id"]  
+            else:
+                project_id = project_name + "-0000-0000"
+                print("due to max depth limit for tenant, would not create project with path: " + full_path + ". Mimicking project_id as " + project_id)
+        else:
+            project_id = project_name + "-0000-0000"
         write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode)
 
         return project_id
@@ -568,8 +590,8 @@ def main():
     logging.info("Modelling project structure...")
     build_root_structure()
     loop_model_project_structure(False, "Azure", azure_root_management_group_list)
-    #loop_model_project_structure(False, "GCP", gcp_root_org_list)
-    #loop_model_project_structure(False, "AWS", aws_root_org_list)
+    loop_model_project_structure(False, "GCP", gcp_root_org_list)
+    loop_model_project_structure(False, "AWS", aws_root_org_list)
 
     # Might just skip burners all together. They can always be added manually later on.
     #logging.info("Modelling project structure (burners)...")

@@ -1557,7 +1557,9 @@ def get_qry_vars_create_folder_project(project_name, parent_folder_project_id):
               "regulatoryStandards": []
             },
             "parentProjectId": parent_folder_project_id
-        }
+        }, 
+      "projectId": "*",
+      "fetchTotalCount": False
     }
 
 def get_qry_vars_create_project_subscription(project_name, subscription_id, parent_folder_project_id):
