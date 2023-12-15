@@ -527,7 +527,6 @@ def create_project(external_id, project_name, full_path, is_folder, parent_proje
         path_depth = len(full_path.split("/"))
         
         if enable_write_mode == True:
-            exit(1)
             if path_depth <= 3 and is_folder == False:
                 print("would create project with path: " + full_path)
                 results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
