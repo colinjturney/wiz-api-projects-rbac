@@ -8,27 +8,99 @@ import sys
 import ctwiz
 import logging
 
-ARG_CLIENT_ID               = 1
-ARG_CLIENT_SECRET           = 2
-ARG_AZURE_ROOT_MG_LIST      = 3
-ARG_SAML_PROVIDER           = 4
-ARG_USER_ROLE               = 5
-ARG_LOG_LEVEL               = 6
-ARG_WIZ_DATACENTER          = 7
-ARG_GCP_ROOT_ORG_LIST       = 8
-ARG_AWS_ROOT_ORG_LIST       = 9
+ARG_CLIENT_ID                   = 1
+ARG_CLIENT_SECRET               = 2
+ARG_AZURE_ROOT_WIZ_PROJECT_NAME = 3
+ARG_AZURE_ROOT_MG_LIST          = 4
+ARG_SAML_PROVIDER               = 5
+ARG_USER_ROLE                   = 6
+ARG_LOG_LEVEL                   = 7
+ARG_WIZ_DATACENTER              = 8
+ARG_GCP_ROOT_WIZ_PROJECT_NAME   = 9
+ARG_GCP_ROOT_ORG_LIST           = 10
+ARG_AWS_ROOT_WIZ_PROJECT_NAME   = 11
+ARG_AWS_ROOT_ORG_LIST           = 12
+ARG_WRITE_MODE                  = 13
 
 
 # Pass in runtime variables
 client_id                           = sys.argv[ARG_CLIENT_ID]
 client_secret                       = sys.argv[ARG_CLIENT_SECRET]
+azure_root_wiz_project_name         = sys.argv[ARG_AZURE_ROOT_WIZ_PROJECT_NAME]
 azure_root_management_group_list    = sys.argv[ARG_AZURE_ROOT_MG_LIST]
 default_saml_provider               = sys.argv[ARG_SAML_PROVIDER]
 default_user_role                   = sys.argv[ARG_USER_ROLE]
 log_level                           = sys.argv[ARG_LOG_LEVEL]
 wiz_datacenter                      = sys.argv[ARG_WIZ_DATACENTER]
+gcp_root_wiz_project_name           = sys.argv[ARG_GCP_ROOT_WIZ_PROJECT_NAME]
 gcp_root_org_list                   = sys.argv[ARG_GCP_ROOT_ORG_LIST]
+aws_root_wiz_project_name           = sys.argv[ARG_AWS_ROOT_WIZ_PROJECT_NAME]
 aws_root_org_list                   = sys.argv[ARG_AWS_ROOT_ORG_LIST]
+enable_write_mode                   = sys.argv[ARG_WRITE_MODE]
+
+enable_write_mode = str(enable_write_mode).lower()
+
+if enable_write_mode == "true":
+    enable_write_mode = True
+elif enable_write_mode == "false":
+    enable_write_mode = False
+
+# Entity Indexes
+
+azure_entity_matrix= [
+    {"index": 0, "entity_type": "cloud_organization", "parent_index": None},
+    {"index": 1, "entity_type": "cloud_organization", "parent_index": 0},
+    {"index": 2, "entity_type": "subscription", "parent_index": 1},
+    {"index": 3, "entity_type": "cloud_organization", "parent_index": 1},
+    {"index": 4, "entity_type": "subscription", "parent_index": 3},
+    {"index": 5, "entity_type": "cloud_organization", "parent_index": 3},
+    {"index": 6, "entity_type": "subscription", "parent_index": 5},
+    {"index": 7, "entity_type": "cloud_organization", "parent_index": 5},
+    {"index": 8, "entity_type": "cloud_organization", "parent_index": 7},
+    {"index": 9, "entity_type": "cloud_organization", "parent_index": 8},
+    {"index": 10, "entity_type": "subscription", "parent_index": 9},
+    {"index": 11, "entity_type": "subscription", "parent_index": 8},
+    {"index": 12, "entity_type": "subscription", "parent_index": 7},
+    {"index": 13, "entity_type": "subscription", "parent_index": 0},
+]
+
+aws_entity_matrix = [
+    {"index": 0, "entity_type": "cloud_organization", "parent_index": None},
+    {"index": 1, "entity_type": "cloud_organization", "parent_index": 0},
+    {"index": 2, "entity_type": "subscription", "parent_index": 1},
+    {"index": 3, "entity_type": "cloud_organization", "parent_index": 1},
+    {"index": 4, "entity_type": "subscription", "parent_index": 3},
+    {"index": 5, "entity_type": "cloud_organization", "parent_index": 3},
+    {"index": 6, "entity_type": "subscription", "parent_index": 5},
+    {"index": 7, "entity_type": "cloud_organization", "parent_index": 5},
+    {"index": 8, "entity_type": "cloud_organization", "parent_index": 7},
+    {"index": 9, "entity_type": "cloud_organization", "parent_index": 8},
+    {"index": 10, "entity_type": "subscription", "parent_index": 9},
+    {"index": 11, "entity_type": "subscription", "parent_index": 8},
+    {"index": 12, "entity_type": "subscription", "parent_index": 7},
+    {"index": 13, "entity_type": "subscription", "parent_index": 0},
+]
+
+gcp_entity_matrix = [
+    {"index": 0, "entity_type": "cloud_organization", "parent_index": None},
+    {"index": 1, "entity_type": "cloud_organization", "parent_index": 0},
+    {"index": 2, "entity_type": "subscription", "parent_index": 1},
+    {"index": 3, "entity_type": "cloud_organization", "parent_index": 1},
+    {"index": 4, "entity_type": "subscription", "parent_index": 3},
+    {"index": 5, "entity_type": "cloud_organization", "parent_index": 3},
+    {"index": 6, "entity_type": "subscription", "parent_index": 5},
+    {"index": 7, "entity_type": "cloud_organization", "parent_index": 5},
+    {"index": 8, "entity_type": "subscription", "parent_index": 7},
+    {"index": 9, "entity_type": "subscription", "parent_index": 0},
+]
+
+def get_matrix(cloud):
+    if cloud == "Azure":
+        return azure_entity_matrix
+    elif cloud == "AWS":
+        return aws_entity_matrix
+    elif cloud == "GCP":
+        return gcp_entity_matrix
 
 def set_logging_level(level):
     match level:
@@ -61,10 +133,6 @@ root_structure = {}
 
 root_burner_structure = {}
 
-root_burner_structure["AWS"] = {}
-root_burner_structure["AWS"]["folder_projects"] = {}
-root_burner_structure["AWS"]["projects"]        = {}
-root_burner_structure["AWS"]["is_folder_project"] = True
 
 root_burner_structure["Azure"] = {}
 root_burner_structure["Azure"]["folder_projects"] = {}
@@ -77,36 +145,77 @@ root_burner_structure["GCP"]["projects"]        = {}
 root_burner_structure["GCP"]["is_folder_project"] = True
 
 def build_root_structure():
-    root_structure["AWS"]                       = {}
-    root_structure["AWS"]["folder_projects"]    = {}
-    root_structure["AWS"]["projects"]           = {}
-    root_structure["AWS"]["is_folder_project"]  = True
-    root_structure["AWS"]["path"]               = "AWS/"
-    root_structure["AWS"]["project_id"]         = mock_create_project("AWS_Root", "AWS", root_structure["AWS"]["path"], root_structure["AWS"]["is_folder_project"], None, False)
 
-    root_structure["Azure"] = {}
-    root_structure["Azure"]["folder_projects"]      = {}
-    root_structure["Azure"]["projects"]             = {}
-    root_structure["Azure"]["is_folder_project"]    = True
-    root_structure["Azure"]["path"]                 = "Azure/"
-    root_structure["Azure"]["project_id"]           = mock_create_project("Azure_Root", "Azure", root_structure["Azure"]["path"], root_structure["Azure"]["is_folder_project"], None, False)
+    aws_org_list = json.loads(aws_root_org_list)
 
-    root_structure["GCP"]                       = {}
-    root_structure["GCP"]["folder_projects"]    = {}
-    root_structure["GCP"]["projects"]           = {}
-    root_structure["GCP"]["is_folder_project"]  = True
-    root_structure["GCP"]["path"]               = "GCP/"
-    root_structure["GCP"]["project_id"]         = mock_create_project("GCP_Root", "GCP", root_structure["GCP"]["path"], root_structure["GCP"]["is_folder_project"], None, False)
+    if len(aws_org_list) > 0:
+        root_structure[aws_root_wiz_project_name]                       = {}
+        root_structure[aws_root_wiz_project_name]["folder_projects"]    = {}
+        root_structure[aws_root_wiz_project_name]["projects"]           = {}
+        root_structure[aws_root_wiz_project_name]["is_folder_project"]  = True
+        root_structure[aws_root_wiz_project_name]["path"]               = aws_root_wiz_project_name
+        root_structure[aws_root_wiz_project_name]["project_id"]         = create_project("AWS_Root", aws_root_wiz_project_name, root_structure[aws_root_wiz_project_name]["path"], root_structure[aws_root_wiz_project_name]["is_folder_project"], None, False)
+        root_structure[aws_root_wiz_project_name]["parent_project_id"]    = "ROOT"
+
+        for aws_org in aws_org_list:
+            if aws_org["burner_list"]:
+                root_burner_structure["AWS"] = {}
+                root_burner_structure["AWS"]["folder_projects"] = {}
+                root_burner_structure["AWS"]["projects"]        = {}
+                root_burner_structure["AWS"]["is_folder_project"] = True
+                break
+
+    azure_org_list = json.loads(azure_root_management_group_list)
+
+    if len(azure_org_list) > 0:
+        root_structure[azure_root_wiz_project_name] = {}
+        root_structure[azure_root_wiz_project_name]["folder_projects"]      = {}
+        root_structure[azure_root_wiz_project_name]["projects"]             = {}
+        root_structure[azure_root_wiz_project_name]["is_folder_project"]    = True
+        root_structure[azure_root_wiz_project_name]["path"]                 = azure_root_wiz_project_name
+        root_structure[azure_root_wiz_project_name]["project_id"]           = create_project("Azure_Root", azure_root_wiz_project_name, root_structure[azure_root_wiz_project_name]["path"], root_structure[azure_root_wiz_project_name]["is_folder_project"], None, False)
+        root_structure[azure_root_wiz_project_name]["parent_project_id"]    = "ROOT"
+
+        for azure_org in azure_org_list:
+            if azure_org["burner_list"]:
+                root_burner_structure["Azure"] = {}
+                root_burner_structure["Azure"]["folder_projects"] = {}
+                root_burner_structure["Azure"]["projects"]        = {}
+                root_burner_structure["Azure"]["is_folder_project"] = True
+                break
+
+    gcp_org_list = json.loads(gcp_root_org_list)
+
+    if len(gcp_org_list) > 0:
+        root_structure[gcp_root_wiz_project_name]                       = {}
+        root_structure[gcp_root_wiz_project_name]["folder_projects"]    = {}
+        root_structure[gcp_root_wiz_project_name]["projects"]           = {}
+        root_structure[gcp_root_wiz_project_name]["is_folder_project"]  = True
+        root_structure[gcp_root_wiz_project_name]["path"]               = gcp_root_wiz_project_name
+        root_structure[gcp_root_wiz_project_name]["project_id"]         = create_project("GCP_Root", gcp_root_wiz_project_name, root_structure[gcp_root_wiz_project_name]["path"], root_structure[gcp_root_wiz_project_name]["is_folder_project"], None, False)
+        root_structure[gcp_root_wiz_project_name]["parent_project_id"]  = "ROOT"
+
+        for gcp_org in gcp_org_list:
+            if gcp_org["burner_list"]:
+                root_burner_structure["GCP"] = {}
+                root_burner_structure["GCP"]["folder_projects"] = {}
+                root_burner_structure["GCP"]["projects"]        = {}
+                root_burner_structure["GCP"]["is_folder_project"] = True
+                break
+
 
 def get_group_role_bindings(id, scope_type, project_id, cloud):
 
     query       = ctwiz.get_qry_grp_role_bindings()
     variables   = ""
+    # Adding to dict to ensure duplicate results won't be added.
+    group_project_bindings = {}
 
     if cloud == "AWS" and scope_type == "subscription":
         variables   = ctwiz.get_qry_vars_grp_aws_role_bindings_for_subscriptions(id)
     elif cloud == "AWS" and scope_type == "management_group":
         logging.info("No role bindings for AWS OUs")
+        return group_project_bindings
     elif cloud == "Azure" and scope_type == "subscription":
         variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
     elif cloud == "Azure" and scope_type == "management_group":
@@ -114,11 +223,11 @@ def get_group_role_bindings(id, scope_type, project_id, cloud):
     elif cloud == "GCP" and scope_type == "subscription":
         #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
         logging.info("GCP not yet supported for group role bindings...")
-        exit(1)
+        return group_project_bindings
     elif cloud == "GCP" and scope_type == "management_group":
         #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
         logging.info("GCP not yet supported for group role bindings...")
-        exit(1)
+        return group_project_bindings
 
     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
@@ -132,9 +241,6 @@ def get_group_role_bindings(id, scope_type, project_id, cloud):
             this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
             results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
             page_info = this_results["data"]["graphSearch"]["pageInfo"]
-
-        # Adding to dict to ensure duplicate results won't be added.
-        group_project_bindings = {}
 
         for result in results["data"]["graphSearch"]["nodes"]:
 
@@ -165,54 +271,176 @@ def get_group_role_bindings(id, scope_type, project_id, cloud):
     except KeyError:
         logging.info("No role bindings for AWS OUs")
         return {}
+    
+def new_project_element(external_id, name, element_type, parent_project_id, burner_mode, entity_path, cloud):
+    element                         = {}
+    element["external_id"]          = external_id
+    element["name"]                 = name
+    element["project_id"]           = ""
+    element["groups"]               = {}
+    element["path"]                 = entity_path
+    element["parent_project_id"]    = parent_project_id
+
+    if element_type == "cloud_organization":
+        element["folder_projects"]      = {}
+        element["projects"]             = {}
+        element["is_folder_project"]    = True
+        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode)
+        #element["groups"]               = get_group_role_bindings(external_id, "management_group", element["project_id"], cloud)
+    elif element_type == "subscription":
+        element["is_folder_project"]    = False
+        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode)
+        #element["groups"]               = get_group_role_bindings(external_id, "subscription", element["project_id"], cloud)
+
+    return element
+
+
+def get_entity_lineage_matrix(cloud, target_index, result_list):
+
+    matrix = get_matrix(cloud)
+
+    if result_list == None:
+        result_list = [target_index]
+
+    if target_index == 0:
+        return result_list
+
+    for entity in matrix:
+        if entity["index"] == target_index:
+            return get_entity_lineage_matrix(cloud, entity["parent_index"], [entity["parent_index"]] + result_list)
+
+def build_entity_lineage(cloud, entity_index, entities, mg_friendly_name):
+
+    entity_lineage_matrix = get_entity_lineage_matrix(cloud, entity_index, None)
+    entity_name_lineage_list = []
+
+    for entry in entity_lineage_matrix:
+        if entity_lineage_matrix.index(entry) == 0:
+            name = mg_friendly_name
+        else:
+            if entities[entry]["name"].find("/") != -1:
+                name = entities[entry]["name"].replace("/","-")
+            else:
+                name = entities[entry]["name"]
+
+        entity_name_lineage_list = entity_name_lineage_list + [name]
+
+    return entity_name_lineage_list
+
+def find_or_create_cloud_org(this_project, target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id):
+
+    next_entity_lineage = None
+    if len(target_entity_lineage) > 0:
+        next_entity_lineage = target_entity_lineage.pop(0)
+
+    # Are we at the correct entity_lineage and is the current project a folder project?
+    if len(target_entity_lineage) == 0 and next_entity_lineage == target_entity_name and this_project["is_folder_project"] == True:
+
+        # Return this project if the target folder project already exists within this folder project
+        if next_entity_lineage in this_project["folder_projects"].keys():
+            return this_project
+        else:
+            # Create new project element here if it doesn't already exists and should exist here
+            parent_project_id = this_project["project_id"]
+            this_project["folder_projects"][next_entity_lineage] = new_project_element(target_entity_external_id, target_entity_name, "cloud_organization", parent_project_id, burner_mode, entity_path, cloud)
+            return this_project
+    # Have we stumbled across a project instead of a folder project within the structure? If so return back this_project
+    elif this_project["is_folder_project"] == False:
+        return this_project
+
+    # Do we still have further lineage to traverse and is the current project a folder project?
+    if len(target_entity_lineage) > 0 and this_project["is_folder_project"] == True:
+
+        # Recurse if the target next entity lineage
+        if next_entity_lineage in this_project["folder_projects"].keys():
+            # print("Recursing find_or_create_cloud_org....")
+            parent_project_id = this_project["project_id"]
+            this_project["folder_projects"][next_entity_lineage] = find_or_create_cloud_org(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
+            return this_project
+
+    return this_project
+
+def find_or_create_subscription(this_project, target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id):
+
+    next_entity_lineage = None
+    if len(target_entity_lineage) > 0:
+        next_entity_lineage = target_entity_lineage.pop(0)
+
+    # Create new project element if it doesn't exist
+    if len(target_entity_lineage) == 0 and next_entity_lineage == target_entity_name:
+
+        # Return project if it already exists
+        if next_entity_lineage in this_project["projects"].keys():
+            return this_project
+        
+        # Create new project if it doesn't exist
+        else:
+            parent_project_id = this_project["project_id"]
+            this_project["projects"][next_entity_lineage] = new_project_element(target_entity_external_id, target_entity_name, "subscription", parent_project_id, burner_mode, entity_path, cloud)
+            return this_project
+
+    # Next entity lineage is within this folder project, so we'll need to recurse down to it
+    if len(target_entity_lineage) > 0 and this_project["is_folder_project"] == True:
+        if next_entity_lineage in this_project["folder_projects"].keys():
+            # print("Recursing find_or_create_subscription...")
+            this_project["folder_projects"][next_entity_lineage] = find_or_create_subscription(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
+            return this_project
+
 
 def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg_burner_list):
 
     logging.info("Cloud: " + cloud + " - Burner Mode: " + str(burner_mode) + " - Root Mgmt Group: " + root_mg_id)
     query       = ctwiz.get_qry_project_structure()
     variables   = {}
+    root_wiz_project_name = ""
     
     if burner_mode      == True and cloud == "Azure" and len(mg_burner_list) != 0:
         variables   = ctwiz.get_qry_vars_azure_project_structure_burners(root_mg_id, mg_burner_list[0])
+        root_wiz_project_name = azure_root_wiz_project_name
     elif burner_mode    == False and cloud == "Azure" and len(mg_burner_list) != 0:
-         variables  = ctwiz.get_qry_vars_azure_project_structure_excl_burners(root_mg_id, mg_burner_list[0])  
+        variables  = ctwiz.get_qry_vars_azure_project_structure_excl_burners(root_mg_id, mg_burner_list[0])
+        root_wiz_project_name = azure_root_wiz_project_name 
     elif burner_mode    == False and cloud == "Azure" and len(mg_burner_list) == 0:
-         variables  = ctwiz.get_qry_vars_project_structure_no_burners(root_mg_id, cloud)
+        root_wiz_project_name = azure_root_wiz_project_name
+        variables  = ctwiz.get_qry_vars_project_structure_no_burners(root_mg_id, cloud)
     elif burner_mode    == True and cloud == "GCP":
-        variables   = ctwiz.get_qry_vars_gcp_project_structure_burners(root_mg_id, mg_burner_list[0])
-    elif burner_mode    == False and cloud == "GCP":
+        root_wiz_project_name = cloud
+        logging.info("Not catering for GCP burners - too many results to process. They will be excluded from project creation and should be added to a new project manually later on")
+        return None
+    elif burner_mode    == False and cloud == "GCP" and len(mg_burner_list) > 0:
+        root_wiz_project_name = gcp_root_wiz_project_name
         variables   = ctwiz.get_qry_vars_gcp_project_structure_excl_burners(root_mg_id, mg_burner_list[0])
+    elif burner_mode    == False and cloud == "GCP" and len(mg_burner_list) == 0:
+        root_wiz_project_name = gcp_root_wiz_project_name
+        variables   = ctwiz.get_qry_vars_gcp_project_structure_excl_burners(root_mg_id, "")        
     elif burner_mode    == True and cloud == "AWS":
         logging.info("No burner mode for AWS")
         return None
     elif burner_mode    == False and cloud == "AWS":
+        root_wiz_project_name = aws_root_wiz_project_name
         variables  = ctwiz.get_qry_vars_project_structure_no_burners(root_mg_id, cloud)
     
     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
     # Pagination
     page_info = results["data"]["graphSearch"]["pageInfo"]
-
-    while(page_info["hasNextPage"]):
-        logging.info("Paginating on model_project_structure")
-        variables["after"] = page_info["endCursor"]
-        this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-        results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
-        page_info = this_results["data"]["graphSearch"]["pageInfo"]
+    try:
+        while(page_info["hasNextPage"]):
+            logging.info("Paginating on model_project_structure")
+            variables["after"] = page_info["endCursor"]
+            this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+            results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
+            page_info = this_results["data"]["graphSearch"]["pageInfo"]
+    except TypeError:
+        logging.info("Hit 10k results limit")
 
     logging.info("Exited Pagination")
 
-    # Initialise structure
-
-    structure = {}
-    structure["folder_projects"]    = {}
-    structure["projects"]           = {}
-    structure["is_folder_project"]  = True
-    structure["path"]               = cloud + "/" + mg_friendly_name
-
     logging.info(str(len(results["data"]["graphSearch"]["nodes"])) + " Results fetched")
-    i = 0
+    
+    matrix = get_matrix(cloud)
 
+    i = 0
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
 
@@ -220,218 +448,43 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
         #     break
 
         logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
-        
+
         entities = result["entities"]
 
-        # Some rows returned are empty if there is no matching entity at the level of the graph, so we'll ignore these if = None.
-        #entity0: tenant root group
+        for entity in entities:
 
-        if entities[0] != None:
-            if entities[0]["name"] not in structure["folder_projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[0]["properties"]["externalId"]
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True
-                element["path"]                 = cloud + "/" + mg_friendly_name
-                element["project_id"]           = mock_create_project(entities[0]["properties"]["externalId"], mg_friendly_name, element["path"], element["is_folder_project"], root_structure[cloud]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[0]["properties"]["externalId"], "management_group", element["project_id"], cloud)
+            if entity != None:
+                entity_index        = entities.index(entity)
+                entity_type         = matrix[entity_index]["entity_type"]
+                entity_name         = None
+                parent_project_id   = None
 
-                structure["folder_projects"][entities[0]["name"]] = element
+                if entity_index == 0:
+                    entity_name         = mg_friendly_name
+                    parent_project_id   = root_structure[root_wiz_project_name]["parent_project_id"]
+                else:
+                    # Projects with forward-slashes in name confuse are not accepted. Substitute forward-slashes for dashes
+                    if entity["name"].find("/") != -1:
+                        entity_name = entity["name"].replace("/","-")
+                    else:
+                        entity_name = entity["name"]
 
-        #entity1: cloud organization - member of entity0 tenant root group
+                entity_lineage  =  build_entity_lineage(cloud, entity_index, entities, mg_friendly_name)
+                entity_path         = root_wiz_project_name + "/" + "/".join(entity_lineage)
+                entity_external_id  = entity["properties"]["externalId"]
 
-        if entities[1] != None:
-            if entities[1]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[1]["properties"]["externalId"]              
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"]
-                element["project_id"]           = mock_create_project(entities[1]["properties"]["externalId"], entities[1]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[1]["properties"]["externalId"], "management_group", element["project_id"], cloud)
+                if entity_type == "cloud_organization":
 
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]] = element
+                    root_structure[root_wiz_project_name] = find_or_create_cloud_org(root_structure[root_wiz_project_name], entity_index, entity_name, entity_lineage, entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
 
-        #entity2: subscription - member of entity1 cloud org
-            
-        if entities[2] != None:
-            if entities[2]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"].keys():                
-                element                         = {}
-                element["external_id"]          = entities[2]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[2]["name"]
-                element["project_id"]           = mock_create_project(entities[2]["properties"]["externalId"], entities[2]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[2]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
+                elif entity_type == "subscription":
 
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["projects"][entities[2]["name"]] = element
+                    root_structure[root_wiz_project_name] = find_or_create_subscription(root_structure[root_wiz_project_name], entity_index, entity_name, entity_lineage, entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
 
-        #entity3: cloud organization - member of entity1 cloud org
+# write_to_project_file()
+# Writes a line representing this project/folder project to the project output file CSV
 
-        if entities[3] != None:               
-            if entities[3]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[3]["properties"]["externalId"]   
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True  
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"]
-                element["project_id"]           = mock_create_project(entities[3]["properties"]["externalId"], entities[3]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[3]["properties"]["externalId"], "management_group", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]] = element
-
-        #entity4: subscription - member of entity3 cloud org
-
-        if entities[4] != None:
-            if entities[4]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[4]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[4]["name"]
-                element["project_id"]           = mock_create_project(entities[4]["properties"]["externalId"], entities[4]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[4]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
- 
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["projects"][entities[4]["name"]] = element
-                    
-        #entity5: cloud organization - member of entity3 cloud org
-        
-        if entities[5] != None:               
-            if entities[5]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[5]["properties"]["externalId"]
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"]
-                element["project_id"]           = mock_create_project(entities[5]["properties"]["externalId"], entities[5]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[5]["properties"]["externalId"], "management_group", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]] = element
-
-        #entity6: subscription - member of entity5 cloud org
-
-        if entities[6] != None:
-            if entities[6]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[6]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[6]["name"]
-                element["project_id"]           = mock_create_project(entities[6]["properties"]["externalId"], entities[6]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[6]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["projects"][entities[6]["name"]] = element
-
-        #entity7: cloud organization - member of entity5 cloud org
-
-        if entities[7] != None:
-            if entities[7]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[7]["properties"]["externalId"]
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[7]["name"]
-                element["project_id"]           = mock_create_project(entities[7]["properties"]["externalId"], entities[7]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[7]["properties"]["externalId"], "management_group", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]] = element
-
-        #entity8: cloud organization - member of entity7 cloud org
-
-        if entities[8] != None:
-            if entities[8]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[8]["properties"]["externalId"]
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[7]["name"] + "/" + entities[8]["name"]
-                element["project_id"]           = mock_create_project(entities[8]["properties"]["externalId"], entities[8]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["project_id"]], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[8]["properties"]["externalId"], "management_group", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]] = element
-
-        #entity9: cloud organization - member of entity8 cloud org
-
-        if entities[9] != None:
-            if entities[9]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]["folder_projects"]].keys():
-                element                         = {}
-                element["external_id"]          = entities[9]["properties"]["externalId"]
-                element["folder_projects"]      = {}
-                element["projects"]             = {}
-                element["is_folder_project"]    = True
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[7]["name"] + "/" + entities[8]["name"] + "/" + entities[9]["name"]
-                element["project_id"]           = mock_create_project(entities[9]["properties"]["externalId"], entities[9]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]["folder_projects"][entities[8]["name"]["project_id"]]], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[9]["properties"]["externalId"], "management_group", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["folder_projects"][entities[9]["name"]] = element
-
-        #entity10: subscription - member of entity9 cloud org
-
-        if entities[10] != None:
-            if entities[10]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["projects"]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["folder_projects"][entities[9]["name"]]["projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[10]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[7]["name"] + "/" + entities[8]["name"] + "/" + entities[9]["name"] + "/" + entities[10]["name"]
-                element["project_id"]           = mock_create_project(entities[10]["properties"]["externalId"], entities[10]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["folder_projects"][entities[9]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[10]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["folder_projects"][entities[9]["name"]]["projects"][entities[10]["name"]] = element
-
-        #entity11: subscription - member of entity8 cloud org
-
-        if entities[11] != None:
-            if entities[11]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[11]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[7]["name"] + "/" + entities[8]["name"] + "/" + entities[11]["name"]
-                element["project_id"]           = mock_create_project(entities[11]["properties"]["externalId"], entities[11]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[11]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["folder_projects"][entities[8]["name"]]["projects"][entities[11]["name"]] = element
-
-         #entity12: subscription - member of entity7 cloud org
-
-        if entities[12] != None:
-            if entities[12]["name"] not in structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[12]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[1]["name"] + "/" + entities[3]["name"] + "/" + entities[5]["name"] + "/" + entities[7]["name"] + "/" + entities[12]["name"]
-                element["project_id"]           = mock_create_project(entities[12]["properties"]["externalId"], entities[12]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[12]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["folder_projects"][entities[1]["name"]]["folder_projects"][entities[3]["name"]]["folder_projects"][entities[5]["name"]]["folder_projects"][entities[7]["name"]]["projects"][entities[12]["name"]] = element
-        
-        #entity13: subscription - member of entity0 cloud org
-
-        if entities[13] != None:
-            if entities[13]["name"] not in structure["folder_projects"][entities[0]["name"]]["projects"].keys():
-                element                         = {}
-                element["external_id"]          = entities[13]["properties"]["externalId"]
-                element["is_folder_project"]    = False
-                element["path"]                 = cloud + "/" + mg_friendly_name + "/" + entities[13]["name"]
-                element["project_id"]           = mock_create_project(entities[13]["properties"]["externalId"], entities[13]["name"], element["path"], element["is_folder_project"], structure["folder_projects"][entities[0]["name"]]["project_id"], burner_mode)
-                element["groups"]               = get_group_role_bindings(entities[13]["properties"]["subscriptionExternalId"], "subscription", element["project_id"], cloud)
-
-                structure["folder_projects"][entities[0]["name"]]["projects"][entities[13]["name"]] = element
-
-    structure["folder_projects"] = structure["folder_projects"]
-
-    if burner_mode == True:
-        root_burner_structure[cloud]["folder_projects"][mg_friendly_name] = structure
-    elif burner_mode == False:
-        root_structure[cloud]["folder_projects"][mg_friendly_name] = structure
-
-
-# mock_create_project(project_path)
-# Pretends to create a project in Wiz. Instead just writes the project path it would create to the output txt file.
-
-def mock_create_project(external_id, project_name, full_path, is_folder = False, parent_project_id = None, burner_mode = False):
+def write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode):
 
     filename = ""
 
@@ -442,14 +495,57 @@ def mock_create_project(external_id, project_name, full_path, is_folder = False,
 
     f = open(filename, "a")
 
-    project_id = project_name + "-0000-0000"
-
     if parent_project_id == None:
-        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "\n")
+        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",,\"" + str(path_depth) +"\"\n")
     else:
-        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\"," + str(is_folder) + "," + project_id + "," + parent_project_id + "\n")
+        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",\"" + parent_project_id  + "\",\"" + str(path_depth) + "\"\n")
 
     return project_id
+
+# create_project()
+# Writes to the Wiz API to create this project in Wiz. Returns back the created project's project_id
+def create_project(external_id, project_name, full_path, is_folder, parent_project_id, burner_mode):
+
+    query       = ctwiz.get_qry_create_project()
+    variables   = {}
+    results     = {}
+
+    if burner_mode == False:
+
+        if is_folder == True:
+
+            if parent_project_id == None:
+                variables = ctwiz.get_qry_vars_create_folder_project(project_name, None)
+
+            elif parent_project_id != None:
+                variables = ctwiz.get_qry_vars_create_folder_project(project_name, parent_project_id)
+
+        elif is_folder == False:
+            variables = ctwiz.get_qry_vars_create_project_subscription(project_name, external_id, parent_project_id)    
+
+
+        path_depth = len(full_path.split("/"))
+        
+        if enable_write_mode == True:
+            exit(1)
+            if path_depth <= 3 and is_folder == False:
+                print("would create project with path: " + full_path)
+                results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+                project_id = results["data"]["createProject"]["project"]["id"]
+                print("Created new project: " + str(results))
+            elif path_depth <= 2 and is_folder == True:
+                print("would create folder project with path: " + full_path)
+                results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+                print("Created new folder_project: " + str(results))
+                project_id = results["data"]["createProject"]["project"]["id"]  
+            else:
+                project_id = project_name + "-0000-0000"
+                print("due to max depth limit for tenant, would not create project with path: " + full_path + ". Mimicking project_id as " + project_id)
+        else:
+            project_id = project_name + "-0000-0000"
+        write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode)
+
+        return project_id
 
 def write_saml_role_mappings():
     f = open("saml_role_mappings.csv","a")
@@ -462,10 +558,10 @@ def initialise_mock_files():
     f.write("Group ID, Group Name, Role, Projects, Scoped Project Count\n")
  
     g = open("mock_project_output.csv","w")
-    g.write("Project Name,External ID, Project Path,Is Folder,Project ID, Parent Project ID\n")
+    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth\n")
 
     g = open("mock_project_output_burners.csv","w")
-    g.write("Project Name,External ID, Project Path,Is Folder,Project ID, Parent Project ID\n")
+    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth\n")
 
 
 def loop_model_project_structure(burner_mode, cloud, root_mg_list):
@@ -473,6 +569,7 @@ def loop_model_project_structure(burner_mode, cloud, root_mg_list):
     mg_list = json.loads(root_mg_list)
 
     for mg in mg_list:
+
         mg_friendly_name = mg["friendly_name"]
         mg_id = mg["group_id"]
         mg_burner_list = mg["burner_list"]
