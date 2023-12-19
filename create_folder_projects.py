@@ -154,7 +154,7 @@ def build_root_structure():
         root_structure[aws_root_wiz_project_name]["projects"]           = {}
         root_structure[aws_root_wiz_project_name]["is_folder_project"]  = True
         root_structure[aws_root_wiz_project_name]["path"]               = aws_root_wiz_project_name
-        root_structure[aws_root_wiz_project_name]["project_id"]         = create_project("AWS_Root", aws_root_wiz_project_name, root_structure[aws_root_wiz_project_name]["path"], root_structure[aws_root_wiz_project_name]["is_folder_project"], None, False)
+        root_structure[aws_root_wiz_project_name]["project_id"]         = create_project("AWS_Root", aws_root_wiz_project_name, root_structure[aws_root_wiz_project_name]["path"], root_structure[aws_root_wiz_project_name]["is_folder_project"], None, False, "AWS")
         root_structure[aws_root_wiz_project_name]["parent_project_id"]    = "ROOT"
 
         for aws_org in aws_org_list:
@@ -173,7 +173,7 @@ def build_root_structure():
         root_structure[azure_root_wiz_project_name]["projects"]             = {}
         root_structure[azure_root_wiz_project_name]["is_folder_project"]    = True
         root_structure[azure_root_wiz_project_name]["path"]                 = azure_root_wiz_project_name
-        root_structure[azure_root_wiz_project_name]["project_id"]           = create_project("Azure_Root", azure_root_wiz_project_name, root_structure[azure_root_wiz_project_name]["path"], root_structure[azure_root_wiz_project_name]["is_folder_project"], None, False)
+        root_structure[azure_root_wiz_project_name]["project_id"]           = create_project("Azure_Root", azure_root_wiz_project_name, root_structure[azure_root_wiz_project_name]["path"], root_structure[azure_root_wiz_project_name]["is_folder_project"], None, False, "Azure")
         root_structure[azure_root_wiz_project_name]["parent_project_id"]    = "ROOT"
 
         for azure_org in azure_org_list:
@@ -192,7 +192,7 @@ def build_root_structure():
         root_structure[gcp_root_wiz_project_name]["projects"]           = {}
         root_structure[gcp_root_wiz_project_name]["is_folder_project"]  = True
         root_structure[gcp_root_wiz_project_name]["path"]               = gcp_root_wiz_project_name
-        root_structure[gcp_root_wiz_project_name]["project_id"]         = create_project("GCP_Root", gcp_root_wiz_project_name, root_structure[gcp_root_wiz_project_name]["path"], root_structure[gcp_root_wiz_project_name]["is_folder_project"], None, False)
+        root_structure[gcp_root_wiz_project_name]["project_id"]         = create_project("GCP_Root", gcp_root_wiz_project_name, root_structure[gcp_root_wiz_project_name]["path"], root_structure[gcp_root_wiz_project_name]["is_folder_project"], None, False, "GCP")
         root_structure[gcp_root_wiz_project_name]["parent_project_id"]  = "ROOT"
 
         for gcp_org in gcp_org_list:
@@ -204,93 +204,157 @@ def build_root_structure():
                 break
 
 
-def get_group_role_bindings(id, scope_type, project_id, cloud):
+# def get_group_role_bindings(id, scope_type, project_id, cloud):
+
+#     query       = ctwiz.get_qry_grp_role_bindings()
+#     variables   = ""
+#     # Adding to dict to ensure duplicate results won't be added.
+#     group_project_bindings = {}
+
+#     if cloud == "AWS" and scope_type == "subscription":
+#         logging.info("No role bindings yet for AWS Subs")
+#         return group_project_bindings
+#     elif cloud == "AWS" and scope_type == "management_group":
+#         logging.info("No role bindings for AWS OUs")
+#         return group_project_bindings
+#     elif cloud == "Azure" and scope_type == "subscription":
+#         variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
+#     elif cloud == "Azure" and scope_type == "management_group":
+#         variables   = ctwiz.get_qry_vars_grp_members_for_mgmt_groups(id, cloud)
+#     elif cloud == "GCP" and scope_type == "subscription":
+#         #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
+#         logging.info("GCP not yet supported for group role bindings...")
+#         return group_project_bindings
+#     elif cloud == "GCP" and scope_type == "management_group":
+#         #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
+#         logging.info("GCP not yet supported for group role bindings...")
+#         return group_project_bindings
+
+#     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+
+#     try:
+#         # Pagination
+#         page_info = results["data"]["graphSearch"]["pageInfo"]
+
+#         while(page_info["hasNextPage"]):
+#             logging.info("Paginating on get_role_bindings")
+#             variables["after"] = page_info["endCursor"]
+#             this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+#             results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
+#             page_info = this_results["data"]["graphSearch"]["pageInfo"]
+
+#         for result in results["data"]["graphSearch"]["nodes"]:
+
+#             entities = result["entities"]
+
+#             group_name  = entities[0]["properties"]["name"]
+#             group_id    = entities[0]["properties"]["externalId"]
+
+#             try:
+#                 if groups[group_id] != None:
+#                     groups[group_id]["scoped_projects"].append(project_id)
+#             except KeyError:
+#                 new_group = {}
+#                 new_group["group_name"] = group_name
+#                 new_group["group_id"]   = group_id
+#                 new_group["scoped_projects"] = [project_id]
+#                 new_group["scope_type"] = scope_type
+#                 groups[group_id] = new_group
+
+#             if entities[0] != None:
+#                 group_project_bindings[group_id] = {
+#                     "group_name" : group_name,
+#                     "group_id"  : group_id
+#                 }
+
+#         return group_project_bindings
+
+#     except KeyError:
+#         logging.info("No role bindings for AWS OUs")
+#         return {}
+    
+def get_group_members(external_id, scope_type, cloud):
 
     query       = ctwiz.get_qry_grp_role_bindings()
     variables   = ""
     # Adding to dict to ensure duplicate results won't be added.
-    group_project_bindings = {}
+    group_member_list = []
 
     if cloud == "AWS" and scope_type == "subscription":
-        variables   = ctwiz.get_qry_vars_grp_aws_role_bindings_for_subscriptions(id)
-    elif cloud == "AWS" and scope_type == "management_group":
-        logging.info("No role bindings for AWS OUs")
-        return group_project_bindings
+        variables   = ctwiz.get_qry_vars_grp_members_for_subscriptions(external_id, cloud)
+    elif cloud == "AWS" and scope_type == "cloud_organization":
+        # logging.info("No role bindings for AWS OUs")
+        return group_member_list
     elif cloud == "Azure" and scope_type == "subscription":
-        variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
-    elif cloud == "Azure" and scope_type == "management_group":
-        variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
+        variables   = ctwiz.get_qry_vars_grp_members_for_subscriptions(external_id, cloud)
+    elif cloud == "Azure" and scope_type == "cloud_organization":
+        variables   = ctwiz.get_qry_vars_grp_members_for_mgmt_groups(external_id, cloud)
     elif cloud == "GCP" and scope_type == "subscription":
-        #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
-        logging.info("GCP not yet supported for group role bindings...")
-        return group_project_bindings
-    elif cloud == "GCP" and scope_type == "management_group":
-        #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
-        logging.info("GCP not yet supported for group role bindings...")
-        return group_project_bindings
+        variables   = ctwiz.get_qry_vars_grp_members_for_subscriptions(external_id, cloud)
+    elif cloud == "GCP" and scope_type == "cloud_organization":
+        variables   = ctwiz.get_qry_vars_grp_members_for_mgmt_groups(external_id, cloud)
 
     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
 
-    try:
-        # Pagination
-        page_info = results["data"]["graphSearch"]["pageInfo"]
+    # Pagination
+    page_info = results["data"]["graphSearch"]["pageInfo"]
 
-        while(page_info["hasNextPage"]):
-            logging.info("Paginating on get_role_bindings")
-            variables["after"] = page_info["endCursor"]
-            this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-            results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
-            page_info = this_results["data"]["graphSearch"]["pageInfo"]
+    while(page_info["hasNextPage"]):
+        logging.info("Paginating on get_role_bindings")
+        variables["after"] = page_info["endCursor"]
+        this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+        results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
+        page_info = this_results["data"]["graphSearch"]["pageInfo"]
 
-        for result in results["data"]["graphSearch"]["nodes"]:
+    for result in results["data"]["graphSearch"]["nodes"]:
 
-            entities = result["entities"]
+        entities = result["entities"]
 
-            group_name  = entities[0]["properties"]["name"]
-            group_id    = entities[0]["properties"]["externalId"]
+        member = {}
+        member["name"] = entities[0]["properties"]["name"]
+        if cloud == "GCP" or cloud == "AWS":
+            member["email"] = entities[0]["properties"]["name"]
+        else:
+            member["email"] = entities[0]["properties"]["userPrincipalName"]
 
-            try:
-                if groups[group_id] != None:
-                    groups[group_id]["scoped_projects"].append(project_id)
-            except KeyError:
-                new_group = {}
-                new_group["group_name"] = group_name
-                new_group["group_id"]   = group_id
-                new_group["scoped_projects"] = [project_id]
-                new_group["scope_type"] = scope_type
-                groups[group_id] = new_group
+        group_member_list.append(member)
 
-            if entities[0] != None:
-                group_project_bindings[group_id] = {
-                    "group_name" : group_name,
-                    "group_id"  : group_id
-                }
+    return group_member_list
 
-        return group_project_bindings
-
-    except KeyError:
-        logging.info("No role bindings for AWS OUs")
-        return {}
+def write_ad_group_to_file(group_name, project_name, members_list, cloud):
     
+    f = open("mock_ad_groups.csv", "a")
+
+    for member in members_list:
+        f.write("\"" + group_name + "\",\"" + project_name + "\",\"" + member["name"] + "\",\"" + member["email"] + "\",\"" + cloud + "\"\n")
+    
+    f.write("\n")
+
 def new_project_element(external_id, name, element_type, parent_project_id, burner_mode, entity_path, cloud):
-    element                         = {}
-    element["external_id"]          = external_id
-    element["name"]                 = name
-    element["project_id"]           = ""
-    element["groups"]               = {}
-    element["path"]                 = entity_path
-    element["parent_project_id"]    = parent_project_id
+    element                                 = {}
+    element["external_id"]                  = external_id
+    element["name"]                         = name
+    element["project_id"]                   = ""
+    element["groups"]                       = {}
+    element["path"]                         = entity_path
+    element["parent_project_id"]            = parent_project_id
+    element["ad_groups"]                    = {}
 
     if element_type == "cloud_organization":
         element["folder_projects"]      = {}
         element["projects"]             = {}
         element["is_folder_project"]    = True
-        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode)
-        #element["groups"]               = get_group_role_bindings(external_id, "management_group", element["project_id"], cloud)
+        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode, cloud)
     elif element_type == "subscription":
         element["is_folder_project"]    = False
-        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode)
-        #element["groups"]               = get_group_role_bindings(external_id, "subscription", element["project_id"], cloud)
+        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode, cloud)
+
+    for group_id in ["Wiz_" + str(name + "_" + default_user_role)]:
+        element["ad_groups"][group_id] = {} 
+        element["ad_groups"][group_id]["members"] = get_group_members(external_id, element_type, cloud)
+
+        write_ad_group_to_file(group_id, name, element["ad_groups"][group_id]["members"], cloud)
+        write_saml_role_mapping(group_id, default_user_role, element["project_id"], len(element["ad_groups"][group_id]["members"]), cloud)
 
     return element
 
@@ -444,7 +508,7 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
 
-        # if i == 51:
+        # if i == 11:
         #     break
 
         logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
@@ -484,7 +548,7 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
 # write_to_project_file()
 # Writes a line representing this project/folder project to the project output file CSV
 
-def write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode):
+def write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode, cloud):
 
     filename = ""
 
@@ -496,15 +560,15 @@ def write_to_project_file(project_id, external_id, project_name, full_path, is_f
     f = open(filename, "a")
 
     if parent_project_id == None:
-        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",,\"" + str(path_depth) +"\"\n")
+        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",,\"" + str(path_depth) + "\",\"" + cloud +"\"\n")
     else:
-        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",\"" + parent_project_id  + "\",\"" + str(path_depth) + "\"\n")
+        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",\"" + parent_project_id  + "\",\"" + str(path_depth) + "\",\"" + cloud + "\"\n")
 
     return project_id
 
 # create_project()
 # Writes to the Wiz API to create this project in Wiz. Returns back the created project's project_id
-def create_project(external_id, project_name, full_path, is_folder, parent_project_id, burner_mode):
+def create_project(external_id, project_name, full_path, is_folder, parent_project_id, burner_mode, cloud):
 
     query       = ctwiz.get_qry_create_project()
     variables   = {}
@@ -523,9 +587,10 @@ def create_project(external_id, project_name, full_path, is_folder, parent_proje
         elif is_folder == False:
             variables = ctwiz.get_qry_vars_create_project_subscription(project_name, external_id, parent_project_id)    
 
-
         path_depth = len(full_path.split("/"))
         
+        # Currently hardcoding a limit of 3 due to default tenant restriction.
+
         if enable_write_mode == True:
             if path_depth <= 3 and is_folder == False:
                 print("would create project with path: " + full_path)
@@ -542,25 +607,27 @@ def create_project(external_id, project_name, full_path, is_folder, parent_proje
                 print("due to max depth limit for tenant, would not create project with path: " + full_path + ". Mimicking project_id as " + project_id)
         else:
             project_id = project_name + "-0000-0000"
-        write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode)
+        write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode, cloud)
 
         return project_id
 
-def write_saml_role_mappings():
+def write_saml_role_mapping(group_id, default_user_role, project_id, member_count, cloud):
     f = open("saml_role_mappings.csv","a")
 
-    for group_id in groups:
-        f.write(group_id + "," + groups[group_id]["group_name"] + "," + default_user_role + ",\"" + str(groups[group_id]["scoped_projects"]) + "\"," + str(len(groups[group_id]["scoped_projects"])) + "\n")
+    f.write("\"" + group_id + "\",\"" + default_user_role + "\",\"" + project_id + "\",\"" + str(member_count) + "\,\"" + cloud + "\"\n")
 
 def initialise_mock_files():
     f = open("saml_role_mappings.csv","w")
-    f.write("Group ID, Group Name, Role, Projects, Scoped Project Count\n")
+    f.write("Group ID,Role,Project ID, Scoped User Count,Originating Cloud\n")
  
     g = open("mock_project_output.csv","w")
-    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth\n")
+    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth,Originating Cloud\n")
 
     g = open("mock_project_output_burners.csv","w")
-    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth\n")
+    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth, Originating Cloud\n")
+
+    g = open("mock_ad_groups.csv","w")
+    g.write("Group Name,Wiz Project,Member Name,Member UPN/Email,Originating Cloud\n")
 
 
 def loop_model_project_structure(burner_mode, cloud, root_mg_list):
@@ -597,9 +664,6 @@ def main():
     #loop_model_project_structure(True, "Azure", azure_root_management_group_list)
     # Skip GCP burners for now- too many results appears to be the problem here.
     #model_project_structure(True, gcp_organization_id, "GCP")
-
-    logging.info("Writing SAML Role Mappings Files...")
-    write_saml_role_mappings()
 
 if __name__ == '__main__':
     main()

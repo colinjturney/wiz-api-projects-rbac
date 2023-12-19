@@ -63,6 +63,209 @@ def request_wiz_api_token(client_id, client_secret):
 
     return TOKEN
 
+def get_qry_vars_grp_members_for_subscriptions(external_id, cloud):
+
+  if cloud != "AWS":
+
+    return {
+      "quick": False,
+      "fetchPublicExposurePaths": True,
+      "fetchInternalExposurePaths": False,
+      "fetchIssueAnalytics": False,
+      "fetchLateralMovement": True,
+      "fetchKubernetes": False,
+      "first": 500,
+      "query": {
+          "type": [
+            "USER_ACCOUNT"
+          ],
+          "select": True,
+          "where": {
+            "userDirectory": {
+              "EQUALS": [
+                cloud
+              ]
+            }
+          },
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "ASSIGNED_TO",
+                  "reverse": True
+                }
+              ],
+              "with": {
+                "type": [
+                  "ACCESS_ROLE_BINDING"
+                ],
+                "relationships": [
+                  {
+                    "type": [
+                      {
+                        "type": "APPLIES_TO"
+                      }
+                    ],
+                    "with": {
+                      "type": [
+                        "SUBSCRIPTION"
+                      ],
+                      "where": {
+                        "cloudPlatform": {
+                          "EQUALS": [
+                            cloud
+                          ]
+                        },
+                        "externalId": {
+                          "EQUALS": [
+                            external_id
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+      "projectId": "*",
+      "fetchTotalCount": False
+    }
+  else:
+     return {
+      "quick": False,
+      "fetchPublicExposurePaths": True,
+      "fetchInternalExposurePaths": False,
+      "fetchIssueAnalytics": False,
+      "fetchLateralMovement": True,
+      "fetchKubernetes": False,
+      "first": 500,
+      "query": {
+          "type": [
+            "USER_ACCOUNT"
+          ],
+          "select": True,
+          "where": {
+            "userDirectory": {
+              "EQUALS": [
+                cloud
+              ]
+            }
+          },
+          "relationships": [
+            {
+              "type": [
+                {
+                  "type": "ENTITLES",
+                  "reverse": True
+                }
+              ],
+              "with": {
+                "type": [
+                  "IAM_BINDING"
+                ],
+                "relationships": [
+                  {
+                    "type": [
+                      {
+                        "type": "ALLOWS_ACCESS_TO"
+                      }
+                    ],
+                    "with": {
+                      "type": [
+                        "SUBSCRIPTION"
+                      ],
+                      "where": {
+                        "cloudPlatform": {
+                          "EQUALS": [
+                            cloud
+                          ]
+                        },
+                        "externalId": {
+                          "EQUALS": [
+                            external_id
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+      "projectId": "*",
+      "fetchTotalCount": False
+    }
+
+def get_qry_vars_grp_members_for_mgmt_groups(external_id, cloud):
+  return {
+    "quick": False,
+    "fetchPublicExposurePaths": True,
+    "fetchInternalExposurePaths": False,
+    "fetchIssueAnalytics": False,
+    "fetchLateralMovement": True,
+    "fetchKubernetes": False,
+    "first": 500,
+    "query": {
+      "type": [
+        "USER_ACCOUNT"
+      ],
+      "select": True,
+      "where": {
+        "userDirectory": {
+          "EQUALS": [
+            cloud
+          ]
+        }
+      },
+      "relationships": [
+        {
+          "type": [
+            {
+              "type": "ASSIGNED_TO",
+              "reverse": True
+            }
+          ],
+          "with": {
+            "type": [
+              "ACCESS_ROLE_BINDING"
+            ],
+            "relationships": [
+              {
+                "type": [
+                  {
+                    "type": "APPLIES_TO"
+                  }
+                ],
+                "with": {
+                  "type": [
+                    "CLOUD_ORGANIZATION"
+                  ],
+                  "where": {
+                    "cloudPlatform": {
+                      "EQUALS": [
+                        cloud
+                      ]
+                    },
+                    "externalId": {
+                      "EQUALS": [
+                        external_id
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "projectId": "*",
+    "fetchTotalCount": False
+  }
+
 def get_qry_grp_role_bindings():
     return ("""
     query GraphSearch($query: GraphEntityQueryInput, $controlId: ID, $projectId: String!, $first: Int, $after: String, $fetchTotalCount: Boolean!, $quick: Boolean = true, $fetchPublicExposurePaths: Boolean = false, $fetchInternalExposurePaths: Boolean = false, $fetchIssueAnalytics: Boolean = false, $fetchLateralMovement: Boolean = false, $fetchKubernetes: Boolean = false) {
@@ -231,70 +434,70 @@ def get_qry_vars_grp_azure_role_bindings_for_subscriptions(subscription_id):
 
 def get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(management_group_id):
      return {
-  "quick": False,
-  "fetchPublicExposurePaths": True,
-  "fetchInternalExposurePaths": False,
-  "fetchIssueAnalytics": False,
-  "fetchLateralMovement": True,
-  "fetchKubernetes": False,
-  "first": 50,
-  "query": {
-    "type": [
-      "GROUP"
-    ],
-    "where": {
-      "nativeType": {
-        "EQUALS": [
-          "Group"
-        ]
-      }
-    },
-    "select": True,
-    "relationships": [
-      {
+      "quick": False,
+      "fetchPublicExposurePaths": True,
+      "fetchInternalExposurePaths": False,
+      "fetchIssueAnalytics": False,
+      "fetchLateralMovement": True,
+      "fetchKubernetes": False,
+      "first": 50,
+      "query": {
         "type": [
-          {
-            "type": "ENTITLES",
-            "reverse": True
-          }
+          "GROUP"
         ],
-        "with": {
-          "type": [
-            "IAM_BINDING"
-          ],
-          "relationships": [
-            {
+        "where": {
+          "nativeType": {
+            "EQUALS": [
+              "Group"
+            ]
+          }
+        },
+        "select": True,
+        "relationships": [
+          {
+            "type": [
+              {
+                "type": "ENTITLES",
+                "reverse": True
+              }
+            ],
+            "with": {
               "type": [
-                {
-                  "type": "ALLOWS_ACCESS_TO"
-                }
+                "IAM_BINDING"
               ],
-              "with": {
-                "type": [
-                  "CLOUD_ORGANIZATION",
-                ],
-                "where": {
-                  "nativeType": {
-                    "EQUALS": [
-                      "Microsoft.Management/managementGroups",
-                    ]
-                  },
-                  "externalId": {
-                    "EQUALS": [
-                      management_group_id
-                    ]
+              "relationships": [
+                {
+                  "type": [
+                    {
+                      "type": "ALLOWS_ACCESS_TO"
+                    }
+                  ],
+                  "with": {
+                    "type": [
+                      "CLOUD_ORGANIZATION",
+                    ],
+                    "where": {
+                      "nativeType": {
+                        "EQUALS": [
+                          "Microsoft.Management/managementGroups",
+                        ]
+                      },
+                      "externalId": {
+                        "EQUALS": [
+                          management_group_id
+                        ]
+                      }
+                    }
                   }
                 }
-              }
+              ]
             }
-          ]
-        }
-      }
-    ]
-  },
-  "projectId": "*",
-  "fetchTotalCount": False
-}
+          }
+        ]
+      },
+      "projectId": "*",
+      "fetchTotalCount": False
+    }
 
 def get_qry_vars_grp_aws_role_bindings_for_subscriptions(subscription_id):
   return {
