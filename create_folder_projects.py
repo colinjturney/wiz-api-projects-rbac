@@ -327,8 +327,6 @@ def write_ad_group_to_file(group_name, project_name, members_list, cloud):
 
     for member in members_list:
         f.write("\"" + group_name + "\",\"" + project_name + "\",\"" + member["name"] + "\",\"" + member["email"] + "\",\"" + cloud + "\"\n")
-    
-    f.write("\n")
 
 def new_project_element(external_id, name, element_type, parent_project_id, burner_mode, entity_path, cloud):
     element                                 = {}
