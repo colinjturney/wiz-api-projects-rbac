@@ -590,19 +590,19 @@ def create_project(external_id, project_name, full_path, is_folder, parent_proje
         # Currently hardcoding a limit of 3 due to default tenant restriction.
 
         if enable_write_mode == True:
-            if path_depth <= 3 and is_folder == False:
+            if path_depth <= 8 and is_folder == False:
                 print("would create project with path: " + full_path)
                 results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
                 project_id = results["data"]["createProject"]["project"]["id"]
                 print("Created new project: " + str(results))
-            elif path_depth <= 2 and is_folder == True:
+            elif path_depth <= 7 and is_folder == True:
                 print("would create folder project with path: " + full_path)
                 results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
                 print("Created new folder_project: " + str(results))
                 project_id = results["data"]["createProject"]["project"]["id"]  
             else:
                 project_id = project_name + "-0000-0000"
-                print("due to max depth limit for tenant, would not create project with path: " + full_path + ". Mimicking project_id as " + project_id)
+                print("due to max depth limit for tenant (assumed 8), would not create project with path: " + full_path + ". Mimicking project_id as " + project_id)
         else:
             project_id = project_name + "-0000-0000"
         write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode, cloud)
