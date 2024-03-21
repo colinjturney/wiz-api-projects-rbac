@@ -1795,6 +1795,126 @@ def get_qry_vars_create_project_subscription(project_name, subscription_id, pare
         }
     }
 
+def get_qry_all_projects():
+
+  return """
+    query ProjectsTable($filterBy: ProjectFilters, $first: Int, $after: String, $orderBy: ProjectOrder, $analyticsSelection: ProjectIssueAnalyticsSelection, $fetchOverdueAndCreatedVsResolvedTrend: Boolean!, $trendStartDate: DateTime!, $trendEndDate: DateTime!, $trendInterval: TimeInterval!) {
+      projects(filterBy: $filterBy, first: $first, after: $after, orderBy: $orderBy) {
+        nodes {
+          id
+          name
+          slug
+          isFolder
+          childProjectCount
+          cloudAccountCount
+          repositoryCount
+          kubernetesClusterCount
+          containerRegistryCount
+          securityScore
+          archived
+          businessUnit
+          description
+          workloadCount
+          licensedWorkloadQuota
+          riskProfile {
+            businessImpact
+          }
+          issueAnalytics(selection: $analyticsSelection) {
+            issueCount
+            informationalSeverityCount
+            lowSeverityCount
+            mediumSeverityCount
+            highSeverityCount
+            criticalSeverityCount
+          }
+          nestingLevel
+          ancestorProjects {
+            ...ProjectsBreadcrumbsItemDetails
+          }
+          openIssuesTrend: issuesTrend(
+            type: OPEN_ISSUES
+            startDate: $trendStartDate
+            endDate: $trendEndDate
+            interval: $trendInterval
+          ) {
+            type
+            dataPoints {
+              time
+              highSeverityValue
+              criticalSeverityValue
+            }
+          }
+          overdueIssuesTrend: issuesTrend(
+            type: OVERDUE_ISSUES
+            startDate: $trendStartDate
+            endDate: $trendEndDate
+            interval: $trendInterval
+          ) @include(if: $fetchOverdueAndCreatedVsResolvedTrend) {
+            type
+            dataPoints {
+              time
+              highSeverityValue
+              criticalSeverityValue
+            }
+          }
+        
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        totalCount
+      }
+    }
+    
+        fragment ProjectsBreadcrumbsItemDetails on Project {
+      id
+      name
+      isFolder
+    }
+"""
+
+# The variables sent along with the above query
+def get_qry_vars_parent_project(project_id, is_root, include_archived):
+  return {
+    "first": 50,
+    "filterBy": {
+      "id": {
+        "equals": [
+          project_id
+        ]
+      },
+      "root": is_root,
+      "includeArchived": include_archived
+    },
+    "orderBy": {
+      "field": "IS_FOLDER",
+      "direction": "DESC"
+    },
+    "analyticsSelection": {},
+    "trendStartDate": "2024-02-21T00:00:00.000Z",
+    "trendEndDate": "2024-03-21T23:59:59.999Z",
+    "trendInterval": "DAY",
+    "fetchOverdueAndCreatedVsResolvedTrend": True
+  }
+   
+def get_qry_vars_child_projects(parent_project_id, include_archived):
+  return {
+    "first": 50,
+    "filterBy": {
+      "parentProjectId": parent_project_id,
+      "includeArchived": include_archived
+    },
+    "orderBy": {
+      "field": "IS_FOLDER",
+      "direction": "DESC"
+    },
+    "analyticsSelection": {},
+    "trendStartDate": "2024-02-21T00:00:00.000Z",
+    "trendEndDate": "2024-03-21T23:59:59.999Z",
+    "trendInterval": "DAY",
+    "fetchOverdueAndCreatedVsResolvedTrend": True
+  }
 
 # {
 #   "data": {
