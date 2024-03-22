@@ -30,9 +30,9 @@ Once loaded, create a wrapper shell script called `cap_run.sh` or similar, struc
 
 ```
 
-export CLIENT_ID="wgxq75hrlndpbktx3eupevf2x3seq2yudsbfloe7kitg5bx2ibixg"
-export CLIENT_SECRET="9OUlr7mipL76puGBl7Svq51VDoIgqUzzCAcCmCtEJO06SlSFSlywXMLXPKwOFw2S"
-export ROOT_PROJECT_ID="05f9f1c7-eae7-58ae-9911-84c7c3580cae"
+export CLIENT_ID="CLIENT_ID"
+export CLIENT_SECRET="CLIENT_SECRET"
+export ROOT_PROJECT_ID="ROOT_PROJECT_ID"
 export TARGET_ARCHIVED="true"
 export PROJECT_NAME_SUFFIX="_OLD"
 export SLUG_SUFFIX="-old" #Only alphanumeric and dashes are permitted here
