@@ -1916,6 +1916,102 @@ def get_qry_vars_child_projects(parent_project_id, include_archived):
     "fetchOverdueAndCreatedVsResolvedTrend": True
   }
 
+def get_qry_update_project():
+  return """
+    mutation UpdateProject($input: UpdateProjectInput!) {
+      updateProject(input: $input) {
+        project {
+          id
+          name
+          identifiers
+          description
+          businessUnit
+          licensedWorkloadQuota
+          projectOwners {
+            id
+            name
+            email
+          }
+          securityChampions {
+            id
+            name
+            email
+          }
+          cloudOrganizationLinks {
+            cloudOrganization {
+              id
+            }
+            environment
+            resourceTags {
+              key
+              value
+            }
+            shared
+            resourceGroups
+          }
+          cloudAccountLinks {
+            cloudAccount {
+              id
+            }
+            environment
+            resourceTags {
+              key
+              value
+            }
+            shared
+            resourceGroups
+          }
+          kubernetesClustersLinks {
+            kubernetesCluster {
+              id
+            }
+            environment
+            namespaces
+            shared
+          }
+          repositoryLinks {
+            repository {
+              id
+            }
+          }
+          containerRegistryLinks {
+            containerRegistry {
+              id
+            }
+            environment
+          }
+          ancestorProjects {
+            id
+            name
+          }
+          riskProfile {
+            businessImpact
+            hasAuthentication
+            isInternetFacing
+            hasExposedAPI
+            storesData
+            sensitiveDataTypes
+            regulatoryStandards
+            isCustomerFacing
+            isRegulated
+          }
+        }
+      }
+    }
+"""
+
+def get_qry_vars_update_project(project_id, project_name, project_slug, is_project_archived):
+  return {
+    "input": {
+      "id": project_id,
+      "patch": {
+        "archived": is_project_archived,
+        "name": project_name,
+        "slug": project_slug
+      }
+    }
+  }
+
 # {
 #   "data": {
 #     "createProject": {

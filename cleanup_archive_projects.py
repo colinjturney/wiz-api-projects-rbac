@@ -7,6 +7,7 @@ import json
 import sys
 import ctwiz
 import logging
+import time
 
 ARG_CLIENT_ID                   = 1
 ARG_CLIENT_SECRET               = 2
@@ -38,12 +39,20 @@ if enable_write_mode == "true":
 elif enable_write_mode == "false":
     enable_write_mode = False
 
-target_archived     = str(include_archived).lower()
+include_archived     = str(include_archived).lower()
 
 if include_archived == "true":
     include_archived = True
 elif include_archived == "false":
     include_archived = False
+
+set_archive_status  = str(set_archive_status).lower()
+
+if set_archive_status == "true":
+    set_archive_status = True
+elif set_archive_status == "false":
+    set_archive_status = False
+
 
 def set_logging_level(level):
     match level:
@@ -121,15 +130,28 @@ def update_project(project_id, current_project_name, project_name_suffix, curren
     logging.info("Current project name: " + current_project_name + " - New project name: " + new_project_name)
     logging.info("Current project slug: " + current_project_slug + " - New project slug: " + new_project_slug)
     logging.info("Current project archived status: is_archived: " + str(current_project_archive_status) + " - New project archived status: is_archived: " + str(target_archive_status))
+    
+    query       = ctwiz.get_qry_update_project()
+    variables   = ctwiz.get_qry_vars_update_project(project_id, new_project_name, new_project_slug, target_archive_status)
+    results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
+
+    if results["data"]["updateProject"]["project"]["id"] == project_id:
+        logging.info("Successfully updated project with id: " + results["data"]["updateProject"]["project"]["id"] + " to name " + results["data"]["updateProject"]["project"]["name"])
+        time.sleep(5)
 
 def loop_and_update_projects(all_projects, project_name_suffix, slug_suffix, target_archive_status):
 
     for project in all_projects:
-        update_project(project["id"], project["name"], project_name_suffix, project["slug"], slug_suffix, project["is_archived"], target_archive_status)
-        
+
         if len(project["child_projects"]) > 0:
             logging.info("Recursing to update projects with parent project id: " + project["id"])
             loop_and_update_projects(project["child_projects"], project_name_suffix, slug_suffix, target_archive_status)
+        elif len(project["child_projects"]) == 0:
+            update_project(project["id"], project["name"], project_name_suffix, project["slug"], slug_suffix, project["is_archived"], target_archive_status)
+            continue
+
+        # Hit here, assuming all child projects have been updated, time to update this project itself
+        update_project(project["id"], project["name"], project_name_suffix, project["slug"], slug_suffix, project["is_archived"], target_archive_status)
 
 def main():
 
@@ -143,7 +165,9 @@ def main():
     is_root   = True
     all_projects = pull_projects(root_project_id, is_root, include_archived)
 
-    print(all_projects)
+    logging.info("")
+    logging.info("The following list of projects are in scope for updating:")
+    logging.info(all_projects)
 
     if enable_write_mode == True:
         print("")
@@ -151,7 +175,7 @@ def main():
         print("Will now update project_id \"" + root_project_id +"\" and all child projects to the following settings:")
         print("Project Name Suffix: " + set_project_name_suffix)
         print("Slug Suffix:" + set_slug_suffix)
-        print("Archive Status: " + set_archive_status)
+        print("Archive Status: " + str(set_archive_status))
     
         proceed = "None"
         while proceed != "Y" and proceed != "N":
