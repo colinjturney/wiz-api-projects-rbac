@@ -30,8 +30,8 @@ Once loaded, create a wrapper shell script called `cap_run.sh` or similar, struc
 
 ```
 
-export CLIENT_ID="CLIENT_ID"
-export CLIENT_SECRET="CLIENT_SECRET"
+export WIZ_CLIENT_ID="WIZ_CLIENT_ID"
+export WIZ_CLIENT_SECRET="WIZ_CLIENT_SECRET"
 export ROOT_PROJECT_ID="ROOT_PROJECT_ID"
 export TARGET_ARCHIVED="true"
 export PROJECT_NAME_SUFFIX="_OLD"
