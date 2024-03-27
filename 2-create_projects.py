@@ -1,3 +1,7 @@
+# Filename: 2-create_projects.py
+
+# Purpose: Loop through a CSV input file and build a project structure in Wiz as prescribed in that file.
+
 # Python 3.6+
 # pip install gql==3.0.0a5 aiohttp==3.7.3
 import http.client
@@ -7,20 +11,6 @@ import os
 import sys
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
-
-"""
-README
-------
-Dependencies: Python 3.6+, aiohttp==3.7.3
-How to use the script:
-    1) Add your client ID, client secret, token URL, and API endpoint URL
-    2) Run the script!
-The minimal permission scopes for the service account are:
-    1) admin:projects
-    2) read:projects
-    3) read:cloud_accounts
- 
-"""
 
 ARG_CLIENT_ID                   = 1
 ARG_CLIENT_SECRET               = 2

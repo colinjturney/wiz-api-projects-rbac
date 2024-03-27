@@ -1,7 +1,7 @@
-# Filename: create_projects_adgroups_csv.py
+# Filename: 1-extract_project_adgroups_structure.py
 
 # Purpose: Loop through all subscriptions and management groups to build a project structure and output this to a CSV file. 
-# Also builds a list of users mapped to respective AD groups and projects, too.
+# Also builds a list of users mapped to respective AD groups and projects, too, and outputs this to another CSV file.
 
 import requests
 import json
