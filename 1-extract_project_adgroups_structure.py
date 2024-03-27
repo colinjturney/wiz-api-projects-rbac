@@ -436,8 +436,8 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
 
-        if i == 11:
-            break
+        # if i == 11:
+        #     break
 
         logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
 
