@@ -1,6 +1,7 @@
 # Filename: 2-create_projects.py
 
-# Purpose: Loop through a CSV input file and build a project structure in Wiz as prescribed in that file.
+# Purpose: Loop through a CSV input file and build a project structure in Wiz as prescribed in that file. 
+# Provides an output CSV file that lists each project name and the appropriate project ID created in Wiz.
 
 # Python 3.6+
 # pip install gql==3.0.0a5 aiohttp==3.7.3
