@@ -1,6 +1,7 @@
-# Filename: create_folder_projects.py
-# Purpose: Loop through all Azure Management Groups that are children of a defined management group and create folder projects for them.
-#          Note: Top-level management groups will have folder projects created prepended with Azure-
+# Filename: 1-extract_project_adgroups_structure.py
+
+# Purpose: Loop through all subscriptions and management groups to build a project structure and output this to a CSV file. 
+# Also builds a list of users mapped to respective AD groups and projects, too, and outputs this to another CSV file.
 
 import requests
 import json
@@ -20,8 +21,8 @@ ARG_GCP_ROOT_WIZ_PROJECT_NAME   = 9
 ARG_GCP_ROOT_ORG_LIST           = 10
 ARG_AWS_ROOT_WIZ_PROJECT_NAME   = 11
 ARG_AWS_ROOT_ORG_LIST           = 12
-ARG_WRITE_MODE                  = 13
-
+ARG_PROJECT_OUTPUT_FILE         = 13
+ARG_AD_OUTPUT_FILE              = 14
 
 # Pass in runtime variables
 client_id                           = sys.argv[ARG_CLIENT_ID]
@@ -36,14 +37,8 @@ gcp_root_wiz_project_name           = sys.argv[ARG_GCP_ROOT_WIZ_PROJECT_NAME]
 gcp_root_org_list                   = sys.argv[ARG_GCP_ROOT_ORG_LIST]
 aws_root_wiz_project_name           = sys.argv[ARG_AWS_ROOT_WIZ_PROJECT_NAME]
 aws_root_org_list                   = sys.argv[ARG_AWS_ROOT_ORG_LIST]
-enable_write_mode                   = sys.argv[ARG_WRITE_MODE]
-
-enable_write_mode = str(enable_write_mode).lower()
-
-if enable_write_mode == "true":
-    enable_write_mode = True
-elif enable_write_mode == "false":
-    enable_write_mode = False
+project_output_file                 = sys.argv[ARG_PROJECT_OUTPUT_FILE]
+ad_output_file                      = sys.argv[ARG_AD_OUTPUT_FILE]
 
 # Entity Indexes
 
@@ -133,7 +128,6 @@ root_structure = {}
 
 root_burner_structure = {}
 
-
 root_burner_structure["Azure"] = {}
 root_burner_structure["Azure"]["folder_projects"] = {}
 root_burner_structure["Azure"]["projects"]        = {}
@@ -149,13 +143,15 @@ def build_root_structure():
     aws_org_list = json.loads(aws_root_org_list)
 
     if len(aws_org_list) > 0:
-        root_structure[aws_root_wiz_project_name]                       = {}
-        root_structure[aws_root_wiz_project_name]["folder_projects"]    = {}
-        root_structure[aws_root_wiz_project_name]["projects"]           = {}
-        root_structure[aws_root_wiz_project_name]["is_folder_project"]  = True
-        root_structure[aws_root_wiz_project_name]["path"]               = aws_root_wiz_project_name
-        root_structure[aws_root_wiz_project_name]["project_id"]         = create_project("AWS_Root", aws_root_wiz_project_name, root_structure[aws_root_wiz_project_name]["path"], root_structure[aws_root_wiz_project_name]["is_folder_project"], None, False, "AWS")
-        root_structure[aws_root_wiz_project_name]["parent_project_id"]    = "ROOT"
+        root_structure[aws_root_wiz_project_name]                           = {}
+        root_structure[aws_root_wiz_project_name]["name"]                   = aws_root_wiz_project_name
+        root_structure[aws_root_wiz_project_name]["folder_projects"]        = {}
+        root_structure[aws_root_wiz_project_name]["projects"]               = {}
+        root_structure[aws_root_wiz_project_name]["is_folder_project"]      = True
+        root_structure[aws_root_wiz_project_name]["path"]                   = aws_root_wiz_project_name
+        root_structure[aws_root_wiz_project_name]["parent_project_name"]    = "ROOT"
+
+        write_to_project_file(aws_root_wiz_project_name, None, aws_root_wiz_project_name, root_structure[aws_root_wiz_project_name]["is_folder_project"], None, "AWS")
 
         for aws_org in aws_org_list:
             if aws_org["burner_list"]:
@@ -169,12 +165,14 @@ def build_root_structure():
 
     if len(azure_org_list) > 0:
         root_structure[azure_root_wiz_project_name] = {}
+        root_structure[azure_root_wiz_project_name]["name"]                 = azure_root_wiz_project_name
         root_structure[azure_root_wiz_project_name]["folder_projects"]      = {}
         root_structure[azure_root_wiz_project_name]["projects"]             = {}
         root_structure[azure_root_wiz_project_name]["is_folder_project"]    = True
         root_structure[azure_root_wiz_project_name]["path"]                 = azure_root_wiz_project_name
-        root_structure[azure_root_wiz_project_name]["project_id"]           = create_project("Azure_Root", azure_root_wiz_project_name, root_structure[azure_root_wiz_project_name]["path"], root_structure[azure_root_wiz_project_name]["is_folder_project"], None, False, "Azure")
         root_structure[azure_root_wiz_project_name]["parent_project_id"]    = "ROOT"
+
+        write_to_project_file(azure_root_wiz_project_name, None, azure_root_wiz_project_name, root_structure[azure_root_wiz_project_name]["is_folder_project"], None, "Azure")
 
         for azure_org in azure_org_list:
             if azure_org["burner_list"]:
@@ -188,12 +186,14 @@ def build_root_structure():
 
     if len(gcp_org_list) > 0:
         root_structure[gcp_root_wiz_project_name]                       = {}
+        root_structure[gcp_root_wiz_project_name]["name"]               = gcp_root_wiz_project_name
         root_structure[gcp_root_wiz_project_name]["folder_projects"]    = {}
         root_structure[gcp_root_wiz_project_name]["projects"]           = {}
         root_structure[gcp_root_wiz_project_name]["is_folder_project"]  = True
         root_structure[gcp_root_wiz_project_name]["path"]               = gcp_root_wiz_project_name
-        root_structure[gcp_root_wiz_project_name]["project_id"]         = create_project("GCP_Root", gcp_root_wiz_project_name, root_structure[gcp_root_wiz_project_name]["path"], root_structure[gcp_root_wiz_project_name]["is_folder_project"], None, False, "GCP")
         root_structure[gcp_root_wiz_project_name]["parent_project_id"]  = "ROOT"
+
+        write_to_project_file(gcp_root_wiz_project_name, None, gcp_root_wiz_project_name, root_structure[gcp_root_wiz_project_name]["is_folder_project"], None, "GCP")
 
         for gcp_org in gcp_org_list:
             if gcp_org["burner_list"]:
@@ -202,76 +202,6 @@ def build_root_structure():
                 root_burner_structure["GCP"]["projects"]        = {}
                 root_burner_structure["GCP"]["is_folder_project"] = True
                 break
-
-
-# def get_group_role_bindings(id, scope_type, project_id, cloud):
-
-#     query       = ctwiz.get_qry_grp_role_bindings()
-#     variables   = ""
-#     # Adding to dict to ensure duplicate results won't be added.
-#     group_project_bindings = {}
-
-#     if cloud == "AWS" and scope_type == "subscription":
-#         logging.info("No role bindings yet for AWS Subs")
-#         return group_project_bindings
-#     elif cloud == "AWS" and scope_type == "management_group":
-#         logging.info("No role bindings for AWS OUs")
-#         return group_project_bindings
-#     elif cloud == "Azure" and scope_type == "subscription":
-#         variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
-#     elif cloud == "Azure" and scope_type == "management_group":
-#         variables   = ctwiz.get_qry_vars_grp_members_for_mgmt_groups(id, cloud)
-#     elif cloud == "GCP" and scope_type == "subscription":
-#         #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_subscriptions(id)
-#         logging.info("GCP not yet supported for group role bindings...")
-#         return group_project_bindings
-#     elif cloud == "GCP" and scope_type == "management_group":
-#         #variables   = ctwiz.get_qry_vars_grp_azure_role_bindings_for_mgmtgrp(id)
-#         logging.info("GCP not yet supported for group role bindings...")
-#         return group_project_bindings
-
-#     results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-
-#     try:
-#         # Pagination
-#         page_info = results["data"]["graphSearch"]["pageInfo"]
-
-#         while(page_info["hasNextPage"]):
-#             logging.info("Paginating on get_role_bindings")
-#             variables["after"] = page_info["endCursor"]
-#             this_results = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-#             results["data"]["graphSearch"]["nodes"].extend(this_results["data"]["graphSearch"]["nodes"])
-#             page_info = this_results["data"]["graphSearch"]["pageInfo"]
-
-#         for result in results["data"]["graphSearch"]["nodes"]:
-
-#             entities = result["entities"]
-
-#             group_name  = entities[0]["properties"]["name"]
-#             group_id    = entities[0]["properties"]["externalId"]
-
-#             try:
-#                 if groups[group_id] != None:
-#                     groups[group_id]["scoped_projects"].append(project_id)
-#             except KeyError:
-#                 new_group = {}
-#                 new_group["group_name"] = group_name
-#                 new_group["group_id"]   = group_id
-#                 new_group["scoped_projects"] = [project_id]
-#                 new_group["scope_type"] = scope_type
-#                 groups[group_id] = new_group
-
-#             if entities[0] != None:
-#                 group_project_bindings[group_id] = {
-#                     "group_name" : group_name,
-#                     "group_id"  : group_id
-#                 }
-
-#         return group_project_bindings
-
-#     except KeyError:
-#         logging.info("No role bindings for AWS OUs")
-#         return {}
     
 def get_group_members(external_id, scope_type, cloud):
 
@@ -323,36 +253,34 @@ def get_group_members(external_id, scope_type, cloud):
 
 def write_ad_group_to_file(group_name, project_name, members_list, cloud):
     
-    f = open("mock_ad_groups.csv", "a")
+    f = open(ad_output_file, "a")
 
     for member in members_list:
         f.write("\"" + group_name + "\",\"" + project_name + "\",\"" + member["name"] + "\",\"" + member["email"] + "\",\"" + cloud + "\"\n")
 
-def new_project_element(external_id, name, element_type, parent_project_id, burner_mode, entity_path, cloud):
+def new_project_element(external_id, project_name, element_type, parent_project_name, burner_mode, entity_path, cloud):
     element                                 = {}
     element["external_id"]                  = external_id
-    element["name"]                         = name
-    element["project_id"]                   = ""
+    element["name"]                         = project_name
     element["groups"]                       = {}
     element["path"]                         = entity_path
-    element["parent_project_id"]            = parent_project_id
+    element["parent_project_name"]          = parent_project_name
     element["ad_groups"]                    = {}
 
     if element_type == "cloud_organization":
         element["folder_projects"]      = {}
         element["projects"]             = {}
         element["is_folder_project"]    = True
-        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode, cloud)
+        write_to_project_file(project_name, external_id, element["path"], element["is_folder_project"], parent_project_name, cloud)
     elif element_type == "subscription":
         element["is_folder_project"]    = False
-        element["project_id"]           = create_project(external_id, name, element["path"], element["is_folder_project"], parent_project_id, burner_mode, cloud)
+        write_to_project_file(project_name, external_id, element["path"], element["is_folder_project"], parent_project_name, cloud)
 
-    for group_id in ["Wiz_" + str(name + "_" + default_user_role)]:
+    for group_id in ["Wiz_" + str(project_name + "_" + default_user_role)]:
         element["ad_groups"][group_id] = {} 
         element["ad_groups"][group_id]["members"] = get_group_members(external_id, element_type, cloud)
 
-        write_ad_group_to_file(group_id, name, element["ad_groups"][group_id]["members"], cloud)
-        write_saml_role_mapping(group_id, default_user_role, element["project_id"], len(element["ad_groups"][group_id]["members"]), cloud)
+        write_ad_group_to_file(group_id, project_name, element["ad_groups"][group_id]["members"], cloud)
 
     return element
 
@@ -362,6 +290,7 @@ def get_entity_lineage_matrix(cloud, target_index, result_list):
     matrix = get_matrix(cloud)
 
     if result_list == None:
+        
         result_list = [target_index]
 
     if target_index == 0:
@@ -389,7 +318,7 @@ def build_entity_lineage(cloud, entity_index, entities, mg_friendly_name):
 
     return entity_name_lineage_list
 
-def find_or_create_cloud_org(this_project, target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id):
+def find_or_create_cloud_org(this_project, target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_name):
 
     next_entity_lineage = None
     if len(target_entity_lineage) > 0:
@@ -403,8 +332,8 @@ def find_or_create_cloud_org(this_project, target_entity_index, target_entity_na
             return this_project
         else:
             # Create new project element here if it doesn't already exists and should exist here
-            parent_project_id = this_project["project_id"]
-            this_project["folder_projects"][next_entity_lineage] = new_project_element(target_entity_external_id, target_entity_name, "cloud_organization", parent_project_id, burner_mode, entity_path, cloud)
+            parent_project_name = this_project["name"]
+            this_project["folder_projects"][next_entity_lineage] = new_project_element(target_entity_external_id, target_entity_name, "cloud_organization", parent_project_name, burner_mode, entity_path, cloud)
             return this_project
     # Have we stumbled across a project instead of a folder project within the structure? If so return back this_project
     elif this_project["is_folder_project"] == False:
@@ -416,8 +345,8 @@ def find_or_create_cloud_org(this_project, target_entity_index, target_entity_na
         # Recurse if the target next entity lineage
         if next_entity_lineage in this_project["folder_projects"].keys():
             # print("Recursing find_or_create_cloud_org....")
-            parent_project_id = this_project["project_id"]
-            this_project["folder_projects"][next_entity_lineage] = find_or_create_cloud_org(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
+            parent_project_name = this_project["name"]
+            this_project["folder_projects"][next_entity_lineage] = find_or_create_cloud_org(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_name)
             return this_project
 
     return this_project
@@ -437,15 +366,16 @@ def find_or_create_subscription(this_project, target_entity_index, target_entity
         
         # Create new project if it doesn't exist
         else:
-            parent_project_id = this_project["project_id"]
-            this_project["projects"][next_entity_lineage] = new_project_element(target_entity_external_id, target_entity_name, "subscription", parent_project_id, burner_mode, entity_path, cloud)
+            parent_project_name = this_project["name"]
+            this_project["projects"][next_entity_lineage] = new_project_element(target_entity_external_id, target_entity_name, "subscription", parent_project_name, burner_mode, entity_path, cloud)
             return this_project
 
     # Next entity lineage is within this folder project, so we'll need to recurse down to it
     if len(target_entity_lineage) > 0 and this_project["is_folder_project"] == True:
         if next_entity_lineage in this_project["folder_projects"].keys():
+            parent_project_name = this_project["name"]
             # print("Recursing find_or_create_subscription...")
-            this_project["folder_projects"][next_entity_lineage] = find_or_create_subscription(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
+            this_project["folder_projects"][next_entity_lineage] = find_or_create_subscription(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_name)
             return this_project
 
 
@@ -506,8 +436,8 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
     for result in results["data"]["graphSearch"]["nodes"]:
         i = i + 1
 
-        # if i == 11:
-        #     break
+        if i == 11:
+            break
 
         logging.info("Processing result " + str(i) + " of " + str(len(results["data"]["graphSearch"]["nodes"])))
 
@@ -519,11 +449,11 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
                 entity_index        = entities.index(entity)
                 entity_type         = matrix[entity_index]["entity_type"]
                 entity_name         = None
-                parent_project_id   = None
+                parent_project_name = None
 
                 if entity_index == 0:
                     entity_name         = mg_friendly_name
-                    parent_project_id   = root_structure[root_wiz_project_name]["parent_project_id"]
+                    parent_project_name = root_structure[root_wiz_project_name]["name"]
                 else:
                     # Projects with forward-slashes in name confuse are not accepted. Substitute forward-slashes for dashes
                     if entity["name"].find("/") != -1:
@@ -537,94 +467,32 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
 
                 if entity_type == "cloud_organization":
 
-                    root_structure[root_wiz_project_name] = find_or_create_cloud_org(root_structure[root_wiz_project_name], entity_index, entity_name, entity_lineage, entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
+                    root_structure[root_wiz_project_name] = find_or_create_cloud_org(root_structure[root_wiz_project_name], entity_index, entity_name, entity_lineage, entity_external_id, burner_mode, entity_path, cloud, parent_project_name)
 
                 elif entity_type == "subscription":
 
-                    root_structure[root_wiz_project_name] = find_or_create_subscription(root_structure[root_wiz_project_name], entity_index, entity_name, entity_lineage, entity_external_id, burner_mode, entity_path, cloud, parent_project_id)
+                    root_structure[root_wiz_project_name] = find_or_create_subscription(root_structure[root_wiz_project_name], entity_index, entity_name, entity_lineage, entity_external_id, burner_mode, entity_path, cloud, parent_project_name)
 
 # write_to_project_file()
 # Writes a line representing this project/folder project to the project output file CSV
 
-def write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode, cloud):
+def write_to_project_file(project_name, external_id, full_path, is_folder, parent_project_name, cloud):
 
-    filename = ""
+    path_depth = len(full_path.split("/"))
 
-    if burner_mode == True:
-        filename = "mock_project_output_burners.csv"
+    f = open(project_output_file, "a")
+
+    if parent_project_name == None:
+        f.write("\"" + project_name + "\",\"" + str(is_folder)  + "\",\"" + str(external_id) + "\",,,\"" + full_path + "\",\"" + str(path_depth) + "\",\"" + cloud +"\"\n")
     else:
-        filename = "mock_project_output.csv"
+        f.write("\"" + project_name + "\",\"" + str(is_folder)  + "\",\"" + str(external_id) + "\",,\"" + parent_project_name + "\",\"" + full_path + "\",\"" + str(path_depth) + "\",\"" + cloud +"\"\n")
 
-    f = open(filename, "a")
-
-    if parent_project_id == None:
-        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",,\"" + str(path_depth) + "\",\"" + cloud +"\"\n")
-    else:
-        f.write("\"" + project_name + "\",\"" + external_id + "\",\"" + full_path + "\",\"" + str(is_folder) + "\",\"" + project_id + "\",\"" + parent_project_id  + "\",\"" + str(path_depth) + "\",\"" + cloud + "\"\n")
-
-    return project_id
-
-# create_project()
-# Writes to the Wiz API to create this project in Wiz. Returns back the created project's project_id
-def create_project(external_id, project_name, full_path, is_folder, parent_project_id, burner_mode, cloud):
-
-    query       = ctwiz.get_qry_create_project()
-    variables   = {}
-    results     = {}
-
-    if burner_mode == False:
-
-        if is_folder == True:
-
-            if parent_project_id == None:
-                variables = ctwiz.get_qry_vars_create_folder_project(project_name, None)
-
-            elif parent_project_id != None:
-                variables = ctwiz.get_qry_vars_create_folder_project(project_name, parent_project_id)
-
-        elif is_folder == False:
-            variables = ctwiz.get_qry_vars_create_project_subscription(project_name, external_id, parent_project_id)    
-
-        path_depth = len(full_path.split("/"))
-        
-        # Currently hardcoding a limit of 3 due to default tenant restriction.
-
-        if enable_write_mode == True:
-            if path_depth <= 8 and is_folder == False:
-                print("would create project with path: " + full_path)
-                results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-                project_id = results["data"]["createProject"]["project"]["id"]
-                print("Created new project: " + str(results))
-            elif path_depth <= 7 and is_folder == True:
-                print("would create folder project with path: " + full_path)
-                results     = ctwiz.query_wiz_api(query, variables, wiz_datacenter)
-                print("Created new folder_project: " + str(results))
-                project_id = results["data"]["createProject"]["project"]["id"]  
-            else:
-                project_id = project_name + "-0000-0000"
-                print("due to max depth limit for tenant (assumed 8), would not create project with path: " + full_path + ". Mimicking project_id as " + project_id)
-        else:
-            project_id = project_name + "-0000-0000"
-        write_to_project_file(project_id, external_id, project_name, full_path, is_folder, parent_project_id, path_depth, burner_mode, cloud)
-
-        return project_id
-
-def write_saml_role_mapping(group_id, default_user_role, project_id, member_count, cloud):
-    f = open("saml_role_mappings.csv","a")
-
-    f.write("\"" + group_id + "\",\"" + default_user_role + "\",\"" + project_id + "\",\"" + str(member_count) + "\,\"" + cloud + "\"\n")
 
 def initialise_mock_files():
-    f = open("saml_role_mappings.csv","w")
-    f.write("Group ID,Role,Project ID, Scoped User Count,Originating Cloud\n")
- 
-    g = open("mock_project_output.csv","w")
-    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth,Originating Cloud\n")
+    g = open(project_output_file,"w")
+    g.write("wiz-project-name,isFolder,cloudAccountLinks,cloudOrganizationLinks,parentProjectName,Full Path,Path Depth,Cloud\n")
 
-    g = open("mock_project_output_burners.csv","w")
-    g.write("Project Name,External ID,Project Path,Is Folder,Project ID,Parent Project ID,Nesting Depth, Originating Cloud\n")
-
-    g = open("mock_ad_groups.csv","w")
+    g = open(ad_output_file,"w")
     g.write("Group Name,Wiz Project,Member Name,Member UPN/Email,Originating Cloud\n")
 
 
