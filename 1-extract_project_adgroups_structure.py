@@ -89,6 +89,30 @@ gcp_entity_matrix = [
     {"index": 9, "entity_type": "subscription", "parent_index": 0},
 ]
 
+project_counter = 0
+
+def get_project_code(cloud, entity_path):
+
+    short_cloud = ""
+    if cloud == "AWS":
+        short_cloud = "aws"
+    elif cloud == "GCP":
+        short_cloud = "gcp"
+    elif cloud == "Azure":
+        short_cloud = "az"
+
+    global project_counter 
+    project_counter = project_counter + 1
+    project_level = entity_path.count("/")
+
+    project_code = " (" + short_cloud + str(project_level) + "-"+ str(project_counter) + ")"
+
+    return project_code
+
+azure_root_wiz_project_name = azure_root_wiz_project_name + get_project_code("Azure","Root")
+aws_root_wiz_project_name = aws_root_wiz_project_name + get_project_code("AWS","Root")
+gcp_root_wiz_project_name = gcp_root_wiz_project_name + get_project_code("GCP", "Root")
+
 def get_matrix(cloud):
     if cloud == "Azure":
         return azure_entity_matrix
@@ -259,6 +283,7 @@ def write_ad_group_to_file(group_name, project_name, members_list, cloud):
         f.write("\"" + group_name + "\",\"" + project_name + "\",\"" + member["name"] + "\",\"" + member["email"] + "\",\"" + cloud + "\"\n")
 
 def new_project_element(external_id, project_name, element_type, parent_project_name, burner_mode, entity_path, cloud):
+    project_name = project_name + get_project_code(cloud, entity_path)
     element                                 = {}
     element["external_id"]                  = external_id
     element["name"]                         = project_name
@@ -310,7 +335,7 @@ def build_entity_lineage(cloud, entity_index, entities, mg_friendly_name):
             name = mg_friendly_name
         else:
             if entities[entry]["name"].find("/") != -1:
-                name = entities[entry]["name"].replace("/","-")
+                name = entities[entry]["name"].replace("/","-") 
             else:
                 name = entities[entry]["name"]
 
@@ -344,7 +369,6 @@ def find_or_create_cloud_org(this_project, target_entity_index, target_entity_na
 
         # Recurse if the target next entity lineage
         if next_entity_lineage in this_project["folder_projects"].keys():
-            # print("Recursing find_or_create_cloud_org....")
             parent_project_name = this_project["name"]
             this_project["folder_projects"][next_entity_lineage] = find_or_create_cloud_org(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_name)
             return this_project
@@ -374,7 +398,6 @@ def find_or_create_subscription(this_project, target_entity_index, target_entity
     if len(target_entity_lineage) > 0 and this_project["is_folder_project"] == True:
         if next_entity_lineage in this_project["folder_projects"].keys():
             parent_project_name = this_project["name"]
-            # print("Recursing find_or_create_subscription...")
             this_project["folder_projects"][next_entity_lineage] = find_or_create_subscription(this_project["folder_projects"][next_entity_lineage], target_entity_index, target_entity_name, target_entity_lineage, target_entity_external_id, burner_mode, entity_path, cloud, parent_project_name)
             return this_project
 
@@ -461,7 +484,7 @@ def model_project_structure(burner_mode, root_mg_id, cloud, mg_friendly_name, mg
                     else:
                         entity_name = entity["name"]
 
-                entity_lineage  =  build_entity_lineage(cloud, entity_index, entities, mg_friendly_name)
+                entity_lineage      = build_entity_lineage(cloud, entity_index, entities, mg_friendly_name)
                 entity_path         = root_wiz_project_name + "/" + "/".join(entity_lineage)
                 entity_external_id  = entity["properties"]["externalId"]
 
@@ -502,7 +525,7 @@ def loop_model_project_structure(burner_mode, cloud, root_mg_list):
 
     for mg in mg_list:
 
-        mg_friendly_name = mg["friendly_name"]
+        mg_friendly_name = mg["friendly_name"] + get_project_code(cloud, "Root/")
         mg_id = mg["group_id"]
         mg_burner_list = mg["burner_list"]
 
