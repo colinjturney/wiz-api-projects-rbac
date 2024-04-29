@@ -25,8 +25,8 @@ enum BuiltInUserRoleId {
   SETTINGS_ADMIN
 }
 """
-client_id = "wgxq75hrlndpbktx3eupevf2xyummqtajnlv6rumvynyb3xkocdhg"
-client_secret = "xLdcRKXxvjs6d1oIQBp1825QzSTxzWrmorECOhG2Xx4Ub7MTBaDelyZxCKaEZf8Z"
+client_id = ""
+client_secret = ""
 # client_id = os.getenv('wizcli_id')
 # client_secret = os.getenv('wizcli_secret')
 
