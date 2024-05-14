@@ -525,7 +525,7 @@ def loop_model_project_structure(burner_mode, cloud, root_mg_list):
 
     for mg in mg_list:
 
-        mg_friendly_name = mg["friendly_name"] + get_project_code(cloud, "Root/")
+        mg_friendly_name = mg["friendly_name"]
         mg_id = mg["group_id"]
         mg_burner_list = mg["burner_list"]
 
